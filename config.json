@@ -1,0 +1,12 @@
+{
+    "directional_light_direction": [-3.0, -5.0, -10.0],
+    "directional_light_colour": "0xffffff",
+    "directional_light_enable_specular:": true,
+
+    "ambient_light_colour":"0x666666",
+
+    "shadow_power": 20.0,
+    "shadow_color": "0x301030",
+
+    "camera_offset": [0.0, 20.0, 200.0]
+}

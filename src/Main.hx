@@ -1,3 +1,4 @@
+import haxe.Json;
 import h3d.mat.Texture;
 import hxd.res.Any;
 import haxe.io.Bytes;
@@ -8,6 +9,16 @@ import hxd.fmt.hmd.Data.Material;
 import h3d.Vector;
 import h3d.scene.*;
 import h3d.scene.fwd.*;
+
+typedef ConfigDat = {
+	var directional_light_direction:Array<Float>;
+	var directional_light_colour:String;
+	var directional_light_enable_specular:Bool;
+	var ambient_light_colour:String;
+	var shadow_power:Float;
+	var shadow_color:String;
+	var camera_offset:Array<Float>;
+}
 
 class Main extends SampleApp {
 	var levelDat:String = "
@@ -33,6 +44,8 @@ class Main extends SampleApp {
 	var c1_obj:h3d.scene.Object;
 	var c2_obj:h3d.scene.Object;
 	var cameracontroller:CameraController;
+
+	var config_dat:ConfigDat;
 
 	public static function Rotation(rotInt:Int):Float {
 		return (2 + rotInt) * Math.PI / 2.0;
@@ -65,8 +78,8 @@ class Main extends SampleApp {
 						default:
 							var floor:Int = Std.int((tile.height - 6) / 2);
 							var dir:GameState.Direction = S;
-							trace("height " + Std.string(tile.height));
-							trace(Std.string(floor) + "_Ramp");
+							// trace("height " + Std.string(tile.height));
+							// trace(Std.string(floor) + "_Ramp");
 							var obj = prefabs[Std.string(floor) + "_Ramp"].clone();
 							obs_static.addChild(obj);
 							obj.setPosition(i * 2, j * 2, 0);
@@ -171,11 +184,9 @@ class Main extends SampleApp {
 		// if both are ramps
 		if (curtile.ramp_direction != NONE && tile.ramp_direction != NONE) {
 			// if the target is going in your direction, it's always good
-			if (Std.int(tile.ramp_direction) == Std.int(d)) {
-
-      } else if (curtile.heightCoord() > tile.heightCoord()){
-        //if we're going downhill, it's good
-      } else {
+			if (Std.int(tile.ramp_direction) == Std.int(d)) {} else if (curtile.heightCoord() > tile.heightCoord()) {
+				// if we're going downhill, it's good
+			} else {
 				// check both in the same direction or both in the opposite direction
 				if (Std.int(curtile.ramp_direction) == Std.int(tile.ramp_direction)) {
 					// both in the same direction, ok
@@ -225,7 +236,7 @@ class Main extends SampleApp {
 					// nothing to do
 				} else {
 					// otherwise, try push
-					if (tryMove(ent_under, d, false,false) == false) {
+					if (tryMove(ent_under, d, false, false) == false) {
 						return false;
 					}
 					// move upper in parallel, if any
@@ -249,20 +260,19 @@ class Main extends SampleApp {
 		entity.fromx = entity.x;
 		entity.fromy = entity.y;
 		entity.fromaltitude = entity.altitude;
-    entity.fromdir = entity.dir;
+		entity.fromdir = entity.dir;
 
 		entity.x = tx;
 		entity.y = ty;
 		entity.altitude = tile.altitude + tile.height;
-    if (canTurn){
-      if (entity.dir == d || entity.dir == GameState.Tile.FlipDirection(d)) {
-        //do nothing
-
-      } else {
-        //turnn only 90 degrees
-        entity.dir = d;
-      }
-    }
+		if (canTurn) {
+			if (entity.dir == d || entity.dir == GameState.Tile.FlipDirection(d)) {
+				// do nothing
+			} else {
+				// turnn only 90 degrees
+				entity.dir = d;
+			}
+		}
 
 		if (tile.ramp_direction != NONE) {
 			entity.altitude -= 1;
@@ -285,10 +295,10 @@ class Main extends SampleApp {
 		var z:Float = ent.fromaltitude * (1 - progress) + ent.altitude * progress;
 		z -= 4;
 
-    var rotangle = hxd.Math.angleLerp( Math.PI+ Rotation(ent.fromdir), Math.PI+ Rotation(ent.dir), progress);
+		var rotangle = hxd.Math.angleLerp(Math.PI + Rotation(ent.fromdir), Math.PI + Rotation(ent.dir), progress);
 
 		obj.setPosition(x * 2, y * 2, z / 2);
-		obj.setRotation(0, 0,rotangle);
+		obj.setRotation(0, 0, rotangle);
 	}
 
 	function DoHop(obj:h3d.scene.Object, hopHeight:Float) {
@@ -303,17 +313,17 @@ class Main extends SampleApp {
 	function AnimatePositions() {
 		if (player_obj != null) {
 			DoLerp(player_obj, gamestate.p);
-      var hop_height =  0.3;
-      if (gamestate.p.fromdir==gamestate.p.dir){
-      } else if (gamestate.p.fromdir==GameState.Tile.FlipDirection(gamestate.p.dir)) {
-        hop_height = 2;
-      } else {
-        hop_height = 1;
-      }
+			var hop_height = 0.3;
+			if (gamestate.p.fromdir == gamestate.p.dir) {} else if (gamestate.p.fromdir == GameState.Tile.FlipDirection(gamestate.p.dir)) {
+				hop_height = 2;
+			} else {
+				hop_height = 1;
+			}
 			DoHop(player_obj.getChildAt(0), hop_height);
 
+			var off:Array<Float> = config_dat.camera_offset;
 			s3d.camera.target.set(player_obj.x, player_obj.y, player_obj.z);
-			s3d.camera.pos.set(player_obj.x, player_obj.y + 20, player_obj.z + 20);
+			s3d.camera.pos.set(player_obj.x + off[0], player_obj.y + off[1], player_obj.z + off[2]);
 		}
 		if (c1_obj != null) {
 			DoLerp(c1_obj, gamestate.c1);
@@ -333,15 +343,15 @@ class Main extends SampleApp {
 				gamestate.p.fromx = gamestate.p.x;
 				gamestate.p.fromy = gamestate.p.y;
 				gamestate.p.fromaltitude = gamestate.p.altitude;
-        gamestate.p.fromdir = gamestate.p.dir;
+				gamestate.p.fromdir = gamestate.p.dir;
 				gamestate.c1.fromx = gamestate.c1.x;
 				gamestate.c1.fromy = gamestate.c1.y;
 				gamestate.c1.fromaltitude = gamestate.c1.altitude;
-        gamestate.c1.fromdir = gamestate.c1.dir;
+				gamestate.c1.fromdir = gamestate.c1.dir;
 				gamestate.c2.fromx = gamestate.c2.x;
 				gamestate.c2.fromy = gamestate.c2.y;
 				gamestate.c2.fromaltitude = gamestate.c2.altitude;
-        gamestate.c2.fromdir = gamestate.c2.dir;
+				gamestate.c2.fromdir = gamestate.c2.dir;
 			}
 			return;
 		}
@@ -358,10 +368,11 @@ class Main extends SampleApp {
 		AnimatePositions();
 	}
 
-  function fbxToHmd( data : haxe.io.Bytes, includeGeometry ):Any {
-
+	// stolen from https://github.com/Kha-Samples/heaps/blob/45babaddd41e38d16697adb35034f08a33193456/tools/fbx/Viewer.hx#L352
+	// omg I would have never figured this out by myself.
+	function fbxToHmd(data:haxe.io.Bytes, includeGeometry):Any {
 		// already hmd
-		if( data.get(0) == 'H'.code )
+		if (data.get(0) == 'H'.code)
 			return hxd.res.Any.fromBytes("model.hmd", data);
 
 		var hmdOut = new hxd.fmt.fbx.HMDOut(null);
@@ -382,16 +393,17 @@ class Main extends SampleApp {
 		s3d.addChild(obs_static);
 		s3d.addChild(obs_dynamic);
 
-    var mesh_bytes_fbx = VirtualResources["blends/models.fbx"];
+		var config_bytes = VirtualResources["config.json"];
+		var config_str = hxd.res.Any.fromBytes("config.json", config_bytes).toText();
+		config_dat = Json.parse(config_str);
+		trace(config_dat);
+		var mesh_bytes_fbx = VirtualResources["blends/models.fbx"];
 
-    
-    var mesh_res:Any = fbxToHmd(mesh_bytes_fbx,true);
-    var mesh_model:Model = mesh_res.toModel();
-    var obj:h3d.scene.Object = cache.loadModel(mesh_model);
+		var mesh_res:Any = fbxToHmd(mesh_bytes_fbx, true);
+		var mesh_model:Model = mesh_res.toModel();
+		var obj:h3d.scene.Object = cache.loadModel(mesh_model);
 
-    
-
-    var tex_res:Any =  hxd.res.Any.fromBytes("blends/texture.png",VirtualResources["blends/texture.png"]);
+		var tex_res:Any = hxd.res.Any.fromBytes("blends/texture.png", VirtualResources["blends/texture.png"]);
 		var tex:Texture = tex_res.toTexture();
 
 		var materials:Array<h3d.mat.Material> = new Array<h3d.mat.Material>();
@@ -403,11 +415,10 @@ class Main extends SampleApp {
 		}
 
 		obj.applyAnimationTransform(true);
+
 		s3d.camera.pos.set(-3, -5, 3);
 		s3d.camera.target.z += -1;
 
-		trace("child count", obj.numChildren);
-		trace("name", obj.name);
 		// print name of all children of obj
 		var n = obj.numChildren;
 		prefabs = new Map<String, h3d.scene.Object>();
@@ -419,7 +430,6 @@ class Main extends SampleApp {
 			child.setTransform(transform);
 			child.scale(1);
 			prefabs[child.name] = child;
-			trace("child", child.name);
 
 			// var c = child.clone();
 
@@ -434,20 +444,23 @@ class Main extends SampleApp {
 
 		// obj.playAnimation(cache.loadAnimation(hxd.Res.models));
 
+		var dirs:Array<Float> = config_dat.directional_light_direction;
 		// add lights and setup materials
-		var dir = new DirLight(new h3d.Vector(-3, -5, -10), s3d);
+		var dir = new DirLight(new h3d.Vector(dirs[0], dirs[1], dirs[2]), s3d);
+		dir.color = Vector.fromColor(Std.parseInt(config_dat.directional_light_colour));
+		dir.enableSpecular = config_dat.directional_light_enable_specular;
+
 		// for( m in obj.getMaterials() ) {
 		//   var t = m.mainPass.getShader(h3d.shader.Texture);
 		//   if( t != null ) t.killAlpha = true;
 		//   m.mainPass.culling = None;
 		//   m.getPass("shadow").culling = None;
 		// }
-		s3d.lightSystem.ambientLight.set(0.4, 0.4, 0.4);
+		s3d.lightSystem.ambientLight.setColor(Std.parseInt(config_dat.ambient_light_colour));
 
 		var shadow = s3d.renderer.getPass(h3d.pass.DefaultShadowMap);
-		shadow.power = 20;
-		shadow.color.setColor(0x301030);
-		dir.enableSpecular = true;
+		shadow.power = config_dat.shadow_power;
+		shadow.color.setColor(Std.parseInt(config_dat.shadow_color));
 	}
 
 	static var VirtualResources:Map<String, Bytes>;
@@ -455,7 +468,7 @@ class Main extends SampleApp {
 	static function loadExternalResources() {
 		VirtualResources = new Map<String, Bytes>();
 
-		var toLoad = ["blends/models.fbx", "blends/texture.png"];
+		var toLoad = ["blends/models.fbx", "blends/texture.png", "config.json"];
 		var loadedCount:Int = 0;
 
 		for (i in 0...toLoad.length) {
@@ -464,14 +477,14 @@ class Main extends SampleApp {
 				var cur = new hxd.net.BinaryLoader(p);
 				cur.onLoaded = function(bytes) {
 					try {
-						trace("loaded "+ p+" of size "+ bytes.length);
-            VirtualResources[p] = bytes;
-            loadedCount++;
-            if (loadedCount==toLoad.length){
-              trace("all resources loaded");
+						trace("loaded " + p + " of size " + bytes.length);
+						VirtualResources[p] = bytes;
+						loadedCount++;
+						if (loadedCount == toLoad.length) {
+							trace("all resources loaded");
 
-              new Main();            
-            }
+							new Main();
+						}
 					} catch (e:Dynamic) {
 						cur.onError(e);
 					}
@@ -491,6 +504,5 @@ class Main extends SampleApp {
 	static function main() {
 		hxd.Res.initEmbed();
 		loadExternalResources();
-
 	}
 }
