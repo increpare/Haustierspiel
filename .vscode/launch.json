@@ -5,7 +5,7 @@
 			"type": "chrome",
 			"request": "launch",
 			"name": "Launch Chrome against localhost",
-			"url": "file://${workspaceFolder}/index.html",
+			"url": "http://localhost:8080",
 			"webRoot": "${workspaceFolder}",
 			"preLaunchTask": {
 				"type" : "haxe",
