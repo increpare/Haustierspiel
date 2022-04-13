@@ -8,5 +8,5 @@
     "shadow_power": 20.0,
     "shadow_color": "0x301030",
 
-    "camera_offset": [0.0, 20.0, 200.0]
+    "camera_offset": [0.0, 20.0, 20.0]
 }
