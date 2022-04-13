@@ -194,7 +194,7 @@ class Main extends SampleApp {
 		return true;
 	}
 
-	function tryMove(entity, d:GameState.Direction, canChain:Bool):Bool {
+	function tryMove(entity, d:GameState.Direction, canChain:Bool, canTurn:Bool):Bool {
 		if (!canMove(entity, d))
 			return false;
 
@@ -225,7 +225,7 @@ class Main extends SampleApp {
 					// nothing to do
 				} else {
 					// otherwise, try push
-					if (tryMove(ent_under, d, false) == false) {
+					if (tryMove(ent_under, d, false,false) == false) {
 						return false;
 					}
 					// move upper in parallel, if any
@@ -249,10 +249,21 @@ class Main extends SampleApp {
 		entity.fromx = entity.x;
 		entity.fromy = entity.y;
 		entity.fromaltitude = entity.altitude;
+    entity.fromdir = entity.dir;
 
 		entity.x = tx;
 		entity.y = ty;
 		entity.altitude = tile.altitude + tile.height;
+    if (canTurn){
+      if (entity.dir == d || entity.dir == GameState.Tile.FlipDirection(d)) {
+        //do nothing
+
+      } else {
+        //turnn only 90 degrees
+        entity.dir = d;
+      }
+    }
+
 		if (tile.ramp_direction != NONE) {
 			entity.altitude -= 1;
 		}
@@ -274,8 +285,10 @@ class Main extends SampleApp {
 		var z:Float = ent.fromaltitude * (1 - progress) + ent.altitude * progress;
 		z -= 4;
 
+    var rotangle = hxd.Math.angleLerp( Math.PI+ Rotation(ent.fromdir), Math.PI+ Rotation(ent.dir), progress);
+
 		obj.setPosition(x * 2, y * 2, z / 2);
-		obj.setRotation(0, 0, Rotation(ent.dir));
+		obj.setRotation(0, 0,rotangle);
 	}
 
 	function DoHop(obj:h3d.scene.Object, hopHeight:Float) {
@@ -290,7 +303,14 @@ class Main extends SampleApp {
 	function AnimatePositions() {
 		if (player_obj != null) {
 			DoLerp(player_obj, gamestate.p);
-			DoHop(player_obj.getChildAt(0), 0.3);
+      var hop_height =  0.3;
+      if (gamestate.p.fromdir==gamestate.p.dir){
+      } else if (gamestate.p.fromdir==GameState.Tile.FlipDirection(gamestate.p.dir)) {
+        hop_height = 2;
+      } else {
+        hop_height = 1;
+      }
+			DoHop(player_obj.getChildAt(0), hop_height);
 
 			s3d.camera.target.set(player_obj.x, player_obj.y, player_obj.z);
 			s3d.camera.pos.set(player_obj.x, player_obj.y + 20, player_obj.z + 20);
@@ -313,23 +333,26 @@ class Main extends SampleApp {
 				gamestate.p.fromx = gamestate.p.x;
 				gamestate.p.fromy = gamestate.p.y;
 				gamestate.p.fromaltitude = gamestate.p.altitude;
+        gamestate.p.fromdir = gamestate.p.dir;
 				gamestate.c1.fromx = gamestate.c1.x;
 				gamestate.c1.fromy = gamestate.c1.y;
 				gamestate.c1.fromaltitude = gamestate.c1.altitude;
+        gamestate.c1.fromdir = gamestate.c1.dir;
 				gamestate.c2.fromx = gamestate.c2.x;
 				gamestate.c2.fromy = gamestate.c2.y;
 				gamestate.c2.fromaltitude = gamestate.c2.altitude;
+        gamestate.c2.fromdir = gamestate.c2.dir;
 			}
 			return;
 		}
 		if (hxd.Key.isDown(hxd.Key.LEFT)) {
-			tryMove(gamestate.p, W, true);
+			tryMove(gamestate.p, W, true, true);
 		} else if (hxd.Key.isDown(hxd.Key.RIGHT)) {
-			tryMove(gamestate.p, E, true);
+			tryMove(gamestate.p, E, true, true);
 		} else if (hxd.Key.isDown(hxd.Key.UP)) {
-			tryMove(gamestate.p, N, true);
+			tryMove(gamestate.p, N, true, true);
 		} else if (hxd.Key.isDown(hxd.Key.DOWN)) {
-			tryMove(gamestate.p, S, true);
+			tryMove(gamestate.p, S, true, true);
 		}
 
 		AnimatePositions();

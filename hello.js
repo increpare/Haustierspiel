@@ -128,6 +128,7 @@ var Entity = function(x,y,altitude,height,dir) {
 	this.fromaltitude = altitude;
 	this.height = height;
 	this.dir = dir;
+	this.fromdir = dir;
 };
 $hxClasses["Entity"] = Entity;
 Entity.__name__ = "Entity";
@@ -303,7 +304,7 @@ GameState.LoadFromString = function(s) {
 };
 GameState.prototype = {
 	TileAt: function(i,j) {
-		haxe_Log.trace(i,{ fileName : "src/GameState.hx", lineNumber : 106, className : "GameState", methodName : "TileAt", customParams : [j,this.w,this.h]});
+		haxe_Log.trace(i,{ fileName : "src/GameState.hx", lineNumber : 108, className : "GameState", methodName : "TileAt", customParams : [j,this.w,this.h]});
 		if(i < 0 || j < 0 || i >= this.w || j >= this.h) {
 			return null;
 		}
@@ -759,11 +760,11 @@ Main.loadExternalResources = function() {
 		cur[0].onLoaded = (function(cur,p) {
 			return function(bytes) {
 				try {
-					haxe_Log.trace("loaded " + p[0] + " of size " + bytes.length,{ fileName : "src/Main.hx", lineNumber : 444, className : "Main", methodName : "loadExternalResources"});
+					haxe_Log.trace("loaded " + p[0] + " of size " + bytes.length,{ fileName : "src/Main.hx", lineNumber : 467, className : "Main", methodName : "loadExternalResources"});
 					Main.VirtualResources.h[p[0]] = bytes;
 					loadedCount += 1;
 					if(loadedCount == toLoad.length) {
-						haxe_Log.trace("all resources loaded",{ fileName : "src/Main.hx", lineNumber : 448, className : "Main", methodName : "loadExternalResources"});
+						haxe_Log.trace("all resources loaded",{ fileName : "src/Main.hx", lineNumber : 471, className : "Main", methodName : "loadExternalResources"});
 						new Main();
 					}
 				} catch( _g ) {
@@ -774,12 +775,12 @@ Main.loadExternalResources = function() {
 		})(cur,p);
 		cur[0].onProgress = (function() {
 			return function(cur,max) {
-				haxe_Log.trace(cur / max,{ fileName : "src/Main.hx", lineNumber : 458, className : "Main", methodName : "loadExternalResources"});
+				haxe_Log.trace(cur / max,{ fileName : "src/Main.hx", lineNumber : 481, className : "Main", methodName : "loadExternalResources"});
 			};
 		})();
 		cur[0].onError = (function() {
 			return function(e) {
-				haxe_Log.trace(e,{ fileName : "src/Main.hx", lineNumber : 461, className : "Main", methodName : "loadExternalResources"});
+				haxe_Log.trace(e,{ fileName : "src/Main.hx", lineNumber : 484, className : "Main", methodName : "loadExternalResources"});
 			};
 		})();
 		cur[0].load();
@@ -1131,7 +1132,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		}
 		return true;
 	}
-	,tryMove: function(entity,d,canChain) {
+	,tryMove: function(entity,d,canChain,canTurn) {
 		if(!this.canMove(entity,d)) {
 			return false;
 		}
@@ -1160,7 +1161,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 			} else {
 				var ent_under = ents[0];
 				if(ent_under.altitude + ent_under.height >= entity.altitude) {
-					if(this.tryMove(ent_under,d,false) == false) {
+					if(this.tryMove(ent_under,d,false,false) == false) {
 						return false;
 					}
 					if(ents.length > 1) {
@@ -1179,9 +1180,15 @@ Main.prototype = $extend(SampleApp.prototype,{
 		entity.fromx = entity.x;
 		entity.fromy = entity.y;
 		entity.fromaltitude = entity.altitude;
+		entity.fromdir = entity.dir;
 		entity.x = tx;
 		entity.y = ty;
 		entity.altitude = tile.altitude + tile.height;
+		if(canTurn) {
+			if(!(entity.dir == d || entity.dir == Tile.FlipDirection(d))) {
+				entity.dir = d;
+			}
+		}
 		if(tile.ramp_direction != -1) {
 			entity.altitude -= 1;
 		}
@@ -1196,6 +1203,15 @@ Main.prototype = $extend(SampleApp.prototype,{
 		var y = ent.fromy * (1 - progress) + ent.y * progress;
 		var z = ent.fromaltitude * (1 - progress) + ent.altitude * progress;
 		z -= 4;
+		var a = Math.PI + Main.Rotation(ent.fromdir);
+		var da = Math.PI + Main.Rotation(ent.dir) - a;
+		da %= 6.2831853071795862;
+		if(da > 3.14159265358979323) {
+			da -= 6.2831853071795862;
+		} else if(da <= -3.1415926535897931) {
+			da += 6.2831853071795862;
+		}
+		var rotangle = a + da * progress;
 		var x1 = x * 2;
 		var y1 = y * 2;
 		var z1 = z / 2;
@@ -1230,7 +1246,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		} else {
 			obj.flags &= ~f;
 		}
-		obj.setRotation(0,0,Main.Rotation(ent.dir));
+		obj.setRotation(0,0,rotangle);
 	}
 	,DoHop: function(obj,hopHeight) {
 		var progress = (0.15 - this.moveTimer) / 0.15;
@@ -1272,7 +1288,15 @@ Main.prototype = $extend(SampleApp.prototype,{
 	,AnimatePositions: function() {
 		if(this.player_obj != null) {
 			this.DoLerp(this.player_obj,this.gamestate.p);
-			this.DoHop(this.player_obj.children[0],0.3);
+			var hop_height = 0.3;
+			if(this.gamestate.p.fromdir != this.gamestate.p.dir) {
+				if(this.gamestate.p.fromdir == Tile.FlipDirection(this.gamestate.p.dir)) {
+					hop_height = 2;
+				} else {
+					hop_height = 1;
+				}
+			}
+			this.DoHop(this.player_obj.children[0],hop_height);
 			var _this = this.s3d.camera.target;
 			var x = this.player_obj.x;
 			var y = this.player_obj.y;
@@ -1323,23 +1347,26 @@ Main.prototype = $extend(SampleApp.prototype,{
 				this.gamestate.p.fromx = this.gamestate.p.x;
 				this.gamestate.p.fromy = this.gamestate.p.y;
 				this.gamestate.p.fromaltitude = this.gamestate.p.altitude;
+				this.gamestate.p.fromdir = this.gamestate.p.dir;
 				this.gamestate.c1.fromx = this.gamestate.c1.x;
 				this.gamestate.c1.fromy = this.gamestate.c1.y;
 				this.gamestate.c1.fromaltitude = this.gamestate.c1.altitude;
+				this.gamestate.c1.fromdir = this.gamestate.c1.dir;
 				this.gamestate.c2.fromx = this.gamestate.c2.x;
 				this.gamestate.c2.fromy = this.gamestate.c2.y;
 				this.gamestate.c2.fromaltitude = this.gamestate.c2.altitude;
+				this.gamestate.c2.fromdir = this.gamestate.c2.dir;
 			}
 			return;
 		}
 		if(hxd_Key.isDown(37)) {
-			this.tryMove(this.gamestate.p,3,true);
+			this.tryMove(this.gamestate.p,3,true,true);
 		} else if(hxd_Key.isDown(39)) {
-			this.tryMove(this.gamestate.p,1,true);
+			this.tryMove(this.gamestate.p,1,true,true);
 		} else if(hxd_Key.isDown(38)) {
-			this.tryMove(this.gamestate.p,0,true);
+			this.tryMove(this.gamestate.p,0,true,true);
 		} else if(hxd_Key.isDown(40)) {
-			this.tryMove(this.gamestate.p,2,true);
+			this.tryMove(this.gamestate.p,2,true,true);
 		}
 		this.AnimatePositions();
 	}
@@ -1396,8 +1423,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 		_this.z = z;
 		_this.w = 1.;
 		this.s3d.camera.target.z += -1;
-		haxe_Log.trace("child count",{ fileName : "src/Main.hx", lineNumber : 386, className : "Main", methodName : "init", customParams : [obj.children.length]});
-		haxe_Log.trace("name",{ fileName : "src/Main.hx", lineNumber : 387, className : "Main", methodName : "init", customParams : [obj.name]});
+		haxe_Log.trace("child count",{ fileName : "src/Main.hx", lineNumber : 409, className : "Main", methodName : "init", customParams : [obj.children.length]});
+		haxe_Log.trace("name",{ fileName : "src/Main.hx", lineNumber : 410, className : "Main", methodName : "init", customParams : [obj.name]});
 		var n = obj.children.length;
 		this.prefabs = new haxe_ds_StringMap();
 		var _g = 0;
@@ -1465,7 +1492,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 				child.flags &= ~f3;
 			}
 			this.prefabs.h[child.name] = child;
-			haxe_Log.trace("child",{ fileName : "src/Main.hx", lineNumber : 399, className : "Main", methodName : "init", customParams : [child.name]});
+			haxe_Log.trace("child",{ fileName : "src/Main.hx", lineNumber : 422, className : "Main", methodName : "init", customParams : [child.name]});
 		}
 		this.gamestate = GameState.LoadFromString(this.levelDat);
 		this.RenderLevel(true);

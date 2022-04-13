@@ -81,6 +81,7 @@ class Entity implements Positional {
     public var fromx:Int=0;
     public var fromy:Int=0;
     public var fromaltitude:Int=0;
+    public var fromdir:Direction;
 
 	public function new(x:Int, y:Int, altitude:Int, height:Int, dir:Direction) {
 		this.x = x;
@@ -91,6 +92,7 @@ class Entity implements Positional {
         this.fromaltitude = altitude;
 		this.height = height;
 		this.dir = dir;
+        this.fromdir=dir;
 	}
 }
 
