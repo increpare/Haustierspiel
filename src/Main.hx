@@ -1,3 +1,6 @@
+import js.html.ObserverCallback;
+import h3d.prim.Grid;
+import h3d.mat.BlendMode;
 import haxe.Json;
 import h3d.mat.Texture;
 import hxd.res.Any;
@@ -5,7 +8,6 @@ import haxe.io.Bytes;
 import hxd.res.Model;
 import hxd.fmt.hmd.Reader;
 import haxe.io.Float32Array;
-import hxd.fmt.hmd.Data.Material;
 import h3d.Vector;
 import h3d.scene.*;
 import h3d.scene.fwd.*;
@@ -40,12 +42,16 @@ class Main extends SampleApp {
 
 	var obs_static:h3d.scene.Object;
 	var obs_dynamic:h3d.scene.Object;
+	var obs_editor:h3d.scene.Object;
 	var player_obj:h3d.scene.Object;
 	var c1_obj:h3d.scene.Object;
 	var c2_obj:h3d.scene.Object;
 	var cameracontroller:CameraController;
 
 	var config_dat:ConfigDat;
+	var editormode:Bool = false;
+	var editor_sel:Int = 0;
+	var editor_grid:Object;
 
 	public static function Rotation(rotInt:Int):Float {
 		return (2 + rotInt) * Math.PI / 2.0;
@@ -333,10 +339,67 @@ class Main extends SampleApp {
 		}
 	}
 
+	function EditorUpdate() {
+		if (!editormode) {
+			obs_editor.visible = false;
+			editor_grid.visible = false;
+			return;
+		}
+
+		obs_editor.visible = true;
+		editor_grid.visible = true;
+
+		if (hxd.Key.isDown(hxd.Key.NUMBER_1)) {
+			editor_sel = 0;
+		} else if (hxd.Key.isDown(hxd.Key.NUMBER_2)) {
+			editor_sel = 1;
+		} else if (hxd.Key.isDown(hxd.Key.NUMBER_3)) {
+			editor_sel = 2;
+		} else if (hxd.Key.isDown(hxd.Key.NUMBER_4)) {
+			editor_sel = 3;
+		} else if (hxd.Key.isDown(hxd.Key.NUMBER_5)) {
+			editor_sel = 4;
+		} else if (hxd.Key.isDown(hxd.Key.NUMBER_6)) {
+			editor_sel = 5;
+		} else if (hxd.Key.isDown(hxd.Key.NUMBER_7)) {
+			editor_sel = 6;
+		} else if (hxd.Key.isDown(hxd.Key.NUMBER_8)) {
+			editor_sel = 7;
+		} else if (hxd.Key.isDown(hxd.Key.NUMBER_9)) {
+			editor_sel = 8;
+		} else if (hxd.Key.isDown(hxd.Key.NUMBER_0)) {
+			editor_sel = 9;
+		} else if (hxd.Key.isDown(hxd.Key.I)) {
+			editor_sel = 10;
+		} else if (hxd.Key.isDown(hxd.Key.O)) {
+			editor_sel = 11;
+		} else if (hxd.Key.isDown(hxd.Key.P)) {
+			editor_sel = 12;
+		}
+
+		var buttonlist = obs_editor.getChildAt(0);
+		for (i in 0...editor_buttons.length) {
+			var mesh:Array<Mesh> = buttonlist.getChildAt(i).getMeshes();
+			mesh[0].material = i == editor_sel ? noalphamat : alphamat;
+		}
+
+		var editor_list_pos:Vector = s3d.camera.pos.clone();
+		var forward:Vector = s3d.camera.getViewDirection(0, 1, 0).toVector();
+		forward = forward.multiply(10);
+
+		editor_list_pos = editor_list_pos.add(forward);
+
+		var down:Vector = s3d.camera.getViewDirection(0, 0, 1).toVector();
+		down = down.multiply(1.8);
+		editor_list_pos = editor_list_pos.add(down);
+
+		obs_editor.setPosition(editor_list_pos.x, editor_list_pos.y, editor_list_pos.z);
+	}
+
 	override function update(dt:Float) {
 		if (moveTimer >= 0) {
 			AnimatePositions();
-
+			EditorUpdate();
 			moveTimer -= dt;
 			if (moveTimer < 0) {
 				// reset all lasts to set them to cur
@@ -365,7 +428,53 @@ class Main extends SampleApp {
 			tryMove(gamestate.p, S, true, true);
 		}
 
+		if (hxd.Key.isPressed(hxd.Key.TAB)) {
+			editormode = !editormode;
+			trace(editormode);
+		}
 		AnimatePositions();
+		EditorUpdate();
+	}
+
+	static var editor_buttons:Array<String> = [
+		"Player", "C1", "C2", "0_Floor", "0_Ramp", "1_Floor", "1_Ramp", "2_Floor", "2_Ramp", "3_Floor", "3_Ramp", "4_Floor", "Wall"
+	];
+
+	function create_editor_array() {
+		// obs_dynamic.visible=false;
+		// obs_static.visible=false;
+		var button_list = new Object();
+		obs_editor.addChild(button_list);
+		for (i in 0...editor_buttons.length) {
+			var button_name = editor_buttons[i];
+
+			trace("loading ", button_name);
+			var obj = prefabs[button_name].clone();
+			var meshes = obj.getMeshes();
+			for (j in 0...meshes.length) {
+				var mesh = meshes[j];
+				mesh.material = alphamat;
+			}
+			obj.scale(0.2);
+			button_list.addChild(obj);
+			obj.setPosition((i - editor_buttons.length / 2) / 2, 0, 0);
+			if (i <= 2) {
+				obj.setRotation(0, 0, Math.PI);
+				obj.setPosition((i - editor_buttons.length / 2) / 2, 0, -0.2);
+			} else {
+				obj.setRotation(0, 0, -Math.PI / 2);
+			}
+			obj.rotate(-15 * Math.PI * 2 / 360.0, 0, 0);
+		}
+
+		var grid_poly:h3d.prim.Polygon = new Grid(1, 1, 1, 1);
+		grid_poly.addNormals();
+		grid_poly.addUVs();
+		
+		var editor_grid_mesh:Mesh = new Mesh(grid_poly, editorgridmat);
+
+		editor_grid = editor_grid_mesh;
+		s3d.addChild(editor_grid);
 	}
 
 	// stolen from https://github.com/Kha-Samples/heaps/blob/45babaddd41e38d16697adb35034f08a33193456/tools/fbx/Viewer.hx#L352
@@ -385,14 +494,21 @@ class Main extends SampleApp {
 		return hxd.res.Any.fromBytes("model.hmd", bytes);
 	}
 
+	var alphamat:h3d.mat.Material;
+	var noalphamat:h3d.mat.Material;
+	var editorgridmat:h3d.mat.Material;
+
 	override function init() {
 		cache = new h3d.prim.ModelCache();
 
 		obs_static = new h3d.scene.Object();
 		obs_dynamic = new h3d.scene.Object();
+		obs_editor = new h3d.scene.Object();
 		s3d.addChild(obs_static);
 		s3d.addChild(obs_dynamic);
-
+		s3d.addChild(obs_editor);
+		obs_static.visible = false;
+		obs_dynamic.visible = false;
 		var config_bytes = VirtualResources["config.json"];
 		var config_str = hxd.res.Any.fromBytes("config.json", config_bytes).toText();
 		config_dat = Json.parse(config_str);
@@ -406,13 +522,25 @@ class Main extends SampleApp {
 		var tex_res:Any = hxd.res.Any.fromBytes("blends/texture.png", VirtualResources["blends/texture.png"]);
 		var tex:Texture = tex_res.toTexture();
 
+		var tex_grid = hxd.Res.gridtex.toTexture();
+
 		var materials:Array<h3d.mat.Material> = new Array<h3d.mat.Material>();
 		obj.getMaterials(materials, true);
 
+		trace("we have ", materials.length, " materials");
 		for (i in 0...materials.length) {
 			var m:h3d.mat.Material = materials[i];
 			m.texture = tex;
 		}
+		alphamat = h3d.mat.Material.create(tex);
+		alphamat.blendMode = BlendMode.Alpha;
+		alphamat.color.a = 0.5;
+
+		noalphamat = h3d.mat.Material.create(tex);
+		noalphamat.blendMode = BlendMode.None;
+
+		editorgridmat = h3d.mat.Material.create(tex_grid);
+		editorgridmat.blendMode = BlendMode.Add;
 
 		obj.applyAnimationTransform(true);
 
@@ -461,6 +589,8 @@ class Main extends SampleApp {
 		var shadow = s3d.renderer.getPass(h3d.pass.DefaultShadowMap);
 		shadow.power = config_dat.shadow_power;
 		shadow.color.setColor(Std.parseInt(config_dat.shadow_color));
+
+		create_editor_array();
 	}
 
 	static var VirtualResources:Map<String, Bytes>;

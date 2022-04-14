@@ -738,6 +738,8 @@ SampleApp.prototype = $extend(hxd_App.prototype,{
 });
 var Main = function() {
 	this.moveTimer = -1;
+	this.editor_sel = 0;
+	this.editormode = false;
 	this.levelDat = "\r\n  ..###.###.\r\n  ###44444##\r\n  ###4I4JI##\r\n  ###4ii23##\r\n  1W11DjA111\r\n  DA111W11N1\r\n  1SP1111a00\r\n  .0w0e0000s\r\n  .0000d1a01\r\n  ";
 	SampleApp.call(this);
 };
@@ -760,11 +762,11 @@ Main.loadExternalResources = function() {
 		cur[0].onLoaded = (function(cur,p) {
 			return function(bytes) {
 				try {
-					haxe_Log.trace("loaded " + p[0] + " of size " + bytes.length,{ fileName : "src/Main.hx", lineNumber : 480, className : "Main", methodName : "loadExternalResources"});
+					haxe_Log.trace("loaded " + p[0] + " of size " + bytes.length,{ fileName : "src/Main.hx", lineNumber : 610, className : "Main", methodName : "loadExternalResources"});
 					Main.VirtualResources.h[p[0]] = bytes;
 					loadedCount += 1;
 					if(loadedCount == toLoad.length) {
-						haxe_Log.trace("all resources loaded",{ fileName : "src/Main.hx", lineNumber : 484, className : "Main", methodName : "loadExternalResources"});
+						haxe_Log.trace("all resources loaded",{ fileName : "src/Main.hx", lineNumber : 614, className : "Main", methodName : "loadExternalResources"});
 						new Main();
 					}
 				} catch( _g ) {
@@ -775,19 +777,19 @@ Main.loadExternalResources = function() {
 		})(cur,p);
 		cur[0].onProgress = (function() {
 			return function(cur,max) {
-				haxe_Log.trace(cur / max,{ fileName : "src/Main.hx", lineNumber : 494, className : "Main", methodName : "loadExternalResources"});
+				haxe_Log.trace(cur / max,{ fileName : "src/Main.hx", lineNumber : 624, className : "Main", methodName : "loadExternalResources"});
 			};
 		})();
 		cur[0].onError = (function() {
 			return function(e) {
-				haxe_Log.trace(e,{ fileName : "src/Main.hx", lineNumber : 497, className : "Main", methodName : "loadExternalResources"});
+				haxe_Log.trace(e,{ fileName : "src/Main.hx", lineNumber : 627, className : "Main", methodName : "loadExternalResources"});
 			};
 		})();
 		cur[0].load();
 	}
 };
 Main.main = function() {
-	hxd_Res.set_loader(new hxd_res_Loader(new hxd_fs_EmbedFileSystem(haxe_Unserializer.run("og"))));
+	hxd_Res.set_loader(new hxd_res_Loader(new hxd_fs_EmbedFileSystem(haxe_Unserializer.run("oy11:gridtex.pngtg"))));
 	Main.loadExternalResources();
 };
 Main.__super__ = SampleApp;
@@ -1338,9 +1340,107 @@ Main.prototype = $extend(SampleApp.prototype,{
 			this.DoLerp(this.c2_obj,this.gamestate.c2);
 		}
 	}
+	,EditorUpdate: function() {
+		if(!this.editormode) {
+			var _this = this.obs_editor;
+			var f = 2;
+			_this.flags &= ~f;
+			var _this = this.editor_grid;
+			var f = 2;
+			_this.flags &= ~f;
+			return;
+		}
+		var _this = this.obs_editor;
+		var f = 2;
+		_this.flags |= f;
+		var _this = this.editor_grid;
+		var f = 2;
+		_this.flags |= f;
+		if(hxd_Key.isDown(49)) {
+			this.editor_sel = 0;
+		} else if(hxd_Key.isDown(50)) {
+			this.editor_sel = 1;
+		} else if(hxd_Key.isDown(51)) {
+			this.editor_sel = 2;
+		} else if(hxd_Key.isDown(52)) {
+			this.editor_sel = 3;
+		} else if(hxd_Key.isDown(53)) {
+			this.editor_sel = 4;
+		} else if(hxd_Key.isDown(54)) {
+			this.editor_sel = 5;
+		} else if(hxd_Key.isDown(55)) {
+			this.editor_sel = 6;
+		} else if(hxd_Key.isDown(56)) {
+			this.editor_sel = 7;
+		} else if(hxd_Key.isDown(57)) {
+			this.editor_sel = 8;
+		} else if(hxd_Key.isDown(48)) {
+			this.editor_sel = 9;
+		} else if(hxd_Key.isDown(73)) {
+			this.editor_sel = 10;
+		} else if(hxd_Key.isDown(79)) {
+			this.editor_sel = 11;
+		} else if(hxd_Key.isDown(80)) {
+			this.editor_sel = 12;
+		}
+		var buttonlist = this.obs_editor.children[0];
+		var _g = 0;
+		var _g1 = Main.editor_buttons.length;
+		while(_g < _g1) {
+			var i = _g++;
+			var mesh = buttonlist.children[i].getMeshes();
+			mesh[0].material = i == this.editor_sel ? this.noalphamat : this.alphamat;
+		}
+		var _this = this.s3d.camera.pos;
+		var editor_list_pos = new h3d_Vector(_this.x,_this.y,_this.z,_this.w);
+		var _this = this.s3d.camera.getViewDirection(0,1,0);
+		var forward = new h3d_Vector(_this.x,_this.y,_this.z);
+		forward = new h3d_Vector(forward.x * 10,forward.y * 10,forward.z * 10,forward.w);
+		editor_list_pos = new h3d_Vector(editor_list_pos.x + forward.x,editor_list_pos.y + forward.y,editor_list_pos.z + forward.z,editor_list_pos.w + forward.w);
+		var _this = this.s3d.camera.getViewDirection(0,0,1);
+		var down = new h3d_Vector(_this.x,_this.y,_this.z);
+		down = new h3d_Vector(down.x * 1.8,down.y * 1.8,down.z * 1.8,down.w);
+		editor_list_pos = new h3d_Vector(editor_list_pos.x + down.x,editor_list_pos.y + down.y,editor_list_pos.z + down.z,editor_list_pos.w + down.w);
+		var _this = this.obs_editor;
+		var x = editor_list_pos.x;
+		var y = editor_list_pos.y;
+		var z = editor_list_pos.z;
+		_this.x = x;
+		var f = 1;
+		var b = true;
+		if(b) {
+			_this.flags |= f;
+		} else {
+			_this.flags &= ~f;
+		}
+		_this.y = y;
+		var f = 1;
+		var b = true;
+		if(b) {
+			_this.flags |= f;
+		} else {
+			_this.flags &= ~f;
+		}
+		_this.z = z;
+		var f = 1;
+		var b = true;
+		if(b) {
+			_this.flags |= f;
+		} else {
+			_this.flags &= ~f;
+		}
+		var f = 1;
+		var b = true;
+		if(b) {
+			_this.flags |= f;
+		} else {
+			_this.flags &= ~f;
+		}
+	}
 	,update: function(dt) {
 		if(this.moveTimer >= 0) {
 			this.AnimatePositions();
+			this.EditorUpdate();
 			this.moveTimer -= dt;
 			if(this.moveTimer < 0) {
 				this.gamestate.p.fromx = this.gamestate.p.x;
@@ -1367,7 +1467,146 @@ Main.prototype = $extend(SampleApp.prototype,{
 		} else if(hxd_Key.isDown(40)) {
 			this.tryMove(this.gamestate.p,2,true,true);
 		}
+		if(hxd_Key.isPressed(9)) {
+			this.editormode = !this.editormode;
+			haxe_Log.trace(this.editormode,{ fileName : "src/Main.hx", lineNumber : 433, className : "Main", methodName : "update"});
+		}
 		this.AnimatePositions();
+		this.EditorUpdate();
+	}
+	,create_editor_array: function() {
+		var button_list = new h3d_scene_Object();
+		this.obs_editor.addChild(button_list);
+		var _g = 0;
+		var _g1 = Main.editor_buttons.length;
+		while(_g < _g1) {
+			var i = _g++;
+			var button_name = Main.editor_buttons[i];
+			haxe_Log.trace("loading ",{ fileName : "src/Main.hx", lineNumber : 451, className : "Main", methodName : "create_editor_array", customParams : [button_name]});
+			var obj = this.prefabs.h[button_name].clone();
+			var meshes = obj.getMeshes();
+			var _g2 = 0;
+			var _g3 = meshes.length;
+			while(_g2 < _g3) {
+				var j = _g2++;
+				var mesh = meshes[j];
+				mesh.material = this.alphamat;
+			}
+			var _g4 = obj;
+			var v1 = _g4.scaleX * 0.2;
+			_g4.scaleX = v1;
+			var f = 1;
+			var b = true;
+			if(b) {
+				_g4.flags |= f;
+			} else {
+				_g4.flags &= ~f;
+			}
+			var _g5 = obj;
+			var v11 = _g5.scaleY * 0.2;
+			_g5.scaleY = v11;
+			var f1 = 1;
+			var b1 = true;
+			if(b1) {
+				_g5.flags |= f1;
+			} else {
+				_g5.flags &= ~f1;
+			}
+			var _g6 = obj;
+			var v12 = _g6.scaleZ * 0.2;
+			_g6.scaleZ = v12;
+			var f2 = 1;
+			var b2 = true;
+			if(b2) {
+				_g6.flags |= f2;
+			} else {
+				_g6.flags &= ~f2;
+			}
+			var f3 = 1;
+			var b3 = true;
+			if(b3) {
+				obj.flags |= f3;
+			} else {
+				obj.flags &= ~f3;
+			}
+			button_list.addChild(obj);
+			var x = (i - Main.editor_buttons.length / 2) / 2;
+			obj.x = x;
+			var f4 = 1;
+			var b4 = true;
+			if(b4) {
+				obj.flags |= f4;
+			} else {
+				obj.flags &= ~f4;
+			}
+			obj.y = 0;
+			var f5 = 1;
+			var b5 = true;
+			if(b5) {
+				obj.flags |= f5;
+			} else {
+				obj.flags &= ~f5;
+			}
+			obj.z = 0;
+			var f6 = 1;
+			var b6 = true;
+			if(b6) {
+				obj.flags |= f6;
+			} else {
+				obj.flags &= ~f6;
+			}
+			var f7 = 1;
+			var b7 = true;
+			if(b7) {
+				obj.flags |= f7;
+			} else {
+				obj.flags &= ~f7;
+			}
+			if(i <= 2) {
+				obj.setRotation(0,0,Math.PI);
+				var x1 = (i - Main.editor_buttons.length / 2) / 2;
+				obj.x = x1;
+				var f8 = 1;
+				var b8 = true;
+				if(b8) {
+					obj.flags |= f8;
+				} else {
+					obj.flags &= ~f8;
+				}
+				obj.y = 0;
+				var f9 = 1;
+				var b9 = true;
+				if(b9) {
+					obj.flags |= f9;
+				} else {
+					obj.flags &= ~f9;
+				}
+				obj.z = -0.2;
+				var f10 = 1;
+				var b10 = true;
+				if(b10) {
+					obj.flags |= f10;
+				} else {
+					obj.flags &= ~f10;
+				}
+				var f11 = 1;
+				var b11 = true;
+				if(b11) {
+					obj.flags |= f11;
+				} else {
+					obj.flags &= ~f11;
+				}
+			} else {
+				obj.setRotation(0,0,-Math.PI / 2);
+			}
+			obj.rotate(-15 * Math.PI * 2 / 360.0,0,0);
+		}
+		var grid_poly = new h3d_prim_Grid(2,2,1,1);
+		grid_poly.addNormals();
+		grid_poly.addUVs();
+		var editor_grid_mesh = new h3d_scene_Mesh(grid_poly,this.editorgridmat);
+		this.editor_grid = editor_grid_mesh;
+		this.s3d.addChild(this.editor_grid);
 	}
 	,fbxToHmd: function(data,includeGeometry) {
 		if(data.b[0] == 72) {
@@ -1386,20 +1625,30 @@ Main.prototype = $extend(SampleApp.prototype,{
 		this.cache = new h3d_prim_ModelCache();
 		this.obs_static = new h3d_scene_Object();
 		this.obs_dynamic = new h3d_scene_Object();
+		this.obs_editor = new h3d_scene_Object();
 		this.s3d.addChild(this.obs_static);
 		this.s3d.addChild(this.obs_dynamic);
+		this.s3d.addChild(this.obs_editor);
+		var _this = this.obs_static;
+		var f = 2;
+		_this.flags &= ~f;
+		var _this = this.obs_dynamic;
+		var f = 2;
+		_this.flags &= ~f;
 		var config_bytes = Main.VirtualResources.h["config.json"];
 		var config_str = hxd_res_Any.fromBytes("config.json",config_bytes).toText();
 		this.config_dat = JSON.parse(config_str);
-		haxe_Log.trace(this.config_dat,{ fileName : "src/Main.hx", lineNumber : 399, className : "Main", methodName : "init"});
+		haxe_Log.trace(this.config_dat,{ fileName : "src/Main.hx", lineNumber : 515, className : "Main", methodName : "init"});
 		var mesh_bytes_fbx = Main.VirtualResources.h["blends/models.fbx"];
 		var mesh_res = this.fbxToHmd(mesh_bytes_fbx,true);
 		var mesh_model = mesh_res.toModel();
 		var obj = this.cache.loadModel(mesh_model);
 		var tex_res = hxd_res_Any.fromBytes("blends/texture.png",Main.VirtualResources.h["blends/texture.png"]);
 		var tex = tex_res.toTexture();
+		var tex_grid = hxd_Res.get_loader().loadCache("gridtex.png",hxd_res_Image).toTexture();
 		var materials = [];
 		obj.getMaterials(materials,true);
+		haxe_Log.trace("we have ",{ fileName : "src/Main.hx", lineNumber : 530, className : "Main", methodName : "init", customParams : [materials.length," materials"]});
 		var _g = 0;
 		var _g1 = materials.length;
 		while(_g < _g1) {
@@ -1407,6 +1656,13 @@ Main.prototype = $extend(SampleApp.prototype,{
 			var m = materials[i];
 			m.set_texture(tex);
 		}
+		this.alphamat = h3d_mat_Material.create(tex);
+		this.alphamat.set_blendMode(h2d_BlendMode.Alpha);
+		this.alphamat.mshader.color__.w = 0.5;
+		this.noalphamat = h3d_mat_Material.create(tex);
+		this.noalphamat.set_blendMode(h2d_BlendMode.None);
+		this.editorgridmat = h3d_mat_Material.create(tex_grid);
+		this.editorgridmat.set_blendMode(h2d_BlendMode.Add);
 		obj.applyAnimationTransform(true);
 		var _this = this.s3d.camera.pos;
 		var x = -3;
@@ -1516,6 +1772,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		_this.y = (c >> 8 & 255) / 255;
 		_this.z = (c & 255) / 255;
 		_this.w = (c >>> 24) / 255;
+		this.create_editor_array();
 	}
 	,__class__: Main
 });
@@ -38440,572 +38697,6 @@ h3d_prim_MeshPrimitive.prototype = $extend(h3d_prim_Primitive.prototype,{
 	}
 	,__class__: h3d_prim_MeshPrimitive
 });
-var h3d_prim_HMDModel = function(data,dataPos,lib) {
-	this.bufferAliases = new haxe_ds_StringMap();
-	h3d_prim_MeshPrimitive.call(this);
-	this.data = data;
-	this.dataPosition = dataPos;
-	this.lib = lib;
-};
-$hxClasses["h3d.prim.HMDModel"] = h3d_prim_HMDModel;
-h3d_prim_HMDModel.__name__ = "h3d.prim.HMDModel";
-h3d_prim_HMDModel.__super__ = h3d_prim_MeshPrimitive;
-h3d_prim_HMDModel.prototype = $extend(h3d_prim_MeshPrimitive.prototype,{
-	triCount: function() {
-		return this.data.get_indexCount() / 3 | 0;
-	}
-	,vertexCount: function() {
-		return this.data.vertexCount;
-	}
-	,getBounds: function() {
-		return this.data.bounds;
-	}
-	,selectMaterial: function(i) {
-		this.curMaterial = i;
-	}
-	,getDataBuffers: function(fmt,defaults,material) {
-		return this.lib.getBuffers(this.data,fmt,defaults,material);
-	}
-	,loadSkin: function(skin) {
-		this.lib.loadSkin(this.data,skin);
-	}
-	,addAlias: function(name,realName,offset) {
-		if(offset == null) {
-			offset = 0;
-		}
-		var old = this.bufferAliases.h[name];
-		if(old != null) {
-			if(old.realName != realName || old.offset != offset) {
-				throw haxe_Exception.thrown("Conflicting alias " + name);
-			}
-			return;
-		}
-		this.bufferAliases.h[name] = { realName : realName, offset : offset};
-		if(this.bufferCache != null) {
-			this.allocAlias(name);
-		}
-	}
-	,alloc: function(engine) {
-		this.dispose();
-		this.buffer = new h3d_Buffer(this.data.vertexCount,this.data.vertexStride,[h3d_BufferFlag.LargeBuffer]);
-		var entry = this.lib.resource.entry;
-		entry.open();
-		entry.skip(this.dataPosition + this.data.vertexPosition);
-		var size = this.data.vertexCount * this.data.vertexStride * 4;
-		var bytes = new haxe_io_Bytes(new ArrayBuffer(size));
-		entry.read(bytes,0,size);
-		this.buffer.uploadBytes(bytes,0,this.data.vertexCount);
-		this.indexCount = 0;
-		this.indexesTriPos = [];
-		var _g = 0;
-		var _g1 = this.data.indexCounts;
-		while(_g < _g1.length) {
-			var n = _g1[_g];
-			++_g;
-			this.indexesTriPos.push(this.indexCount / 3 | 0);
-			this.indexCount += n;
-		}
-		var is32 = this.data.vertexCount > 65536;
-		this.indexes = new h3d_Indexes(this.indexCount,is32);
-		entry.skip(this.data.indexPosition - (this.data.vertexPosition + size));
-		var imult = is32 ? 4 : 2;
-		var bytes = new haxe_io_Bytes(new ArrayBuffer(this.indexCount * imult));
-		entry.read(bytes,0,this.indexCount * imult);
-		this.indexes.uploadBytes(bytes,0,this.indexCount);
-		entry.close();
-		var pos = 0;
-		var _g = 0;
-		var _g1 = this.data.vertexFormat;
-		while(_g < _g1.length) {
-			var f = _g1[_g];
-			++_g;
-			this.addBuffer(f.name,this.buffer,pos);
-			pos += f.format & 7;
-		}
-		if(this.normalsRecomputed != null) {
-			this.recomputeNormals(this.normalsRecomputed);
-		}
-		var name = haxe_ds_StringMap.keysIterator(this.bufferAliases.h);
-		while(name.hasNext()) {
-			var name1 = name.next();
-			this.allocAlias(name1);
-		}
-	}
-	,allocAlias: function(name) {
-		var alias = this.bufferAliases.h[name];
-		var this1 = this.bufferCache;
-		var key = hxsl_Globals.allocID(alias.realName);
-		var buffer = this1.h[key];
-		if(buffer == null) {
-			throw haxe_Exception.thrown("Buffer " + alias.realName + " not found for alias " + name);
-		}
-		if(buffer.offset + alias.offset > buffer.buffer.buffer.stride) {
-			throw haxe_Exception.thrown("Alias " + name + " for buffer " + alias.realName + " outside stride");
-		}
-		this.addBuffer(name,buffer.buffer,buffer.offset + alias.offset);
-	}
-	,recomputeNormals: function(name) {
-		if(name == null) {
-			name = "normal";
-		}
-		var pos = this.lib.getBuffers(this.data,[new hxd_fmt_hmd_GeometryFormat("position",3)]);
-		var ids = [];
-		var pts = [];
-		var _g = 0;
-		var _g1 = this.data.vertexCount;
-		while(_g < _g1) {
-			var i = _g++;
-			var added = false;
-			var px = pos.vertexes[i * 3];
-			var py = pos.vertexes[i * 3 + 1];
-			var pz = pos.vertexes[i * 3 + 2];
-			var _g2 = 0;
-			var _g3 = pts.length;
-			while(_g2 < _g3) {
-				var i1 = _g2++;
-				var p = pts[i1];
-				if(p.x == px && p.y == py && p.z == pz) {
-					ids.push(i1);
-					added = true;
-					break;
-				}
-			}
-			if(!added) {
-				ids.push(pts.length);
-				pts.push(new h3d_col_Point(px,py,pz));
-			}
-		}
-		var this1 = new Array(0);
-		var idx = this1;
-		var _g = 0;
-		var _g1 = pos.indexes;
-		while(_g < _g1.length) {
-			var i = _g1[_g];
-			++_g;
-			idx.push(ids[i]);
-		}
-		var pol = new h3d_prim_Polygon(pts,idx);
-		pol.addNormals();
-		var this1 = hxd__$FloatBuffer_Float32Expand._new(0);
-		var v = this1;
-		var _g = v.pos;
-		var _g1 = this.data.vertexCount * 3;
-		while(_g < _g1) {
-			var i = _g++;
-			if(v.pos == v.array.length) {
-				var newSize = v.array.length << 1;
-				if(newSize < 128) {
-					newSize = 128;
-				}
-				var newArray = new Float32Array(newSize);
-				newArray.set(v.array);
-				v.array = newArray;
-			}
-			v.array[v.pos++] = 0.;
-		}
-		var k = 0;
-		var _g = 0;
-		var _g1 = this.data.vertexCount;
-		while(_g < _g1) {
-			var i = _g++;
-			var n = pol.normals[ids[i]];
-			v.array[k++] = n.x;
-			v.array[k++] = n.y;
-			v.array[k++] = n.z;
-		}
-		var buf = h3d_Buffer.ofFloats(v,3);
-		this.addBuffer(name,buf,0);
-		this.normalsRecomputed = name;
-	}
-	,render: function(engine) {
-		if(this.curMaterial < 0) {
-			h3d_prim_MeshPrimitive.prototype.render.call(this,engine);
-			return;
-		}
-		if(this.indexes == null || this.indexes.isDisposed()) {
-			this.alloc(engine);
-		}
-		engine.renderMultiBuffers(this.getBuffers(engine),this.indexes,this.indexesTriPos[this.curMaterial],this.data.indexCounts[this.curMaterial] / 3 | 0);
-		this.curMaterial = -1;
-	}
-	,initCollider: function(poly) {
-		var buf = this.lib.getBuffers(this.data,[new hxd_fmt_hmd_GeometryFormat("position",3)]);
-		poly.setData(buf.vertexes,buf.indexes);
-		if(this.collider == null) {
-			var _this = this.data.bounds;
-			var dx = _this.xMax - _this.xMin;
-			var dy = _this.yMax - _this.yMin;
-			var dz = _this.zMax - _this.zMin;
-			var sphere = new h3d_col_Sphere((_this.xMin + _this.xMax) * 0.5,(_this.yMin + _this.yMax) * 0.5,(_this.zMin + _this.zMax) * 0.5,Math.sqrt(dx * dx + dy * dy + dz * dz) * 0.5);
-			this.collider = new h3d_col_OptimizedCollider(sphere,poly);
-		}
-	}
-	,getCollider: function() {
-		if(this.collider != null) {
-			return this.collider;
-		}
-		var poly = new h3d_col_PolygonBuffer();
-		poly.source = { entry : this.lib.resource.entry, geometryName : null};
-		var _g = 0;
-		var _g1 = this.lib.header.models;
-		while(_g < _g1.length) {
-			var h = _g1[_g];
-			++_g;
-			if(this.lib.header.geometries[h.geometry] == this.data) {
-				poly.source.geometryName = h.name;
-				break;
-			}
-		}
-		this.initCollider(poly);
-		return this.collider;
-	}
-	,__class__: h3d_prim_HMDModel
-});
-var h3d_prim_ModelCache = function() {
-	this.models = new haxe_ds_StringMap();
-	this.textures = new haxe_ds_StringMap();
-	this.anims = new haxe_ds_StringMap();
-};
-$hxClasses["h3d.prim.ModelCache"] = h3d_prim_ModelCache;
-h3d_prim_ModelCache.__name__ = "h3d.prim.ModelCache";
-h3d_prim_ModelCache.prototype = {
-	dispose: function() {
-		this.anims = new haxe_ds_StringMap();
-		this.models = new haxe_ds_StringMap();
-		var t = haxe_ds_StringMap.valueIterator(this.textures.h);
-		while(t.hasNext()) {
-			var t1 = t.next();
-			t1.dispose();
-		}
-		this.textures = new haxe_ds_StringMap();
-	}
-	,loadLibrary: function(res) {
-		return this.loadLibraryData(res).lib;
-	}
-	,loadLibraryData: function(res) {
-		var path = res.entry.get_path();
-		var m = this.models.h[path];
-		if(m == null) {
-			var props;
-			try {
-				var parts = path.split(".");
-				parts.pop();
-				parts.push("props");
-				props = JSON.parse(hxd_res_Loader.currentInstance.load(parts.join(".")).toText());
-			} catch( _g ) {
-				if(((haxe_Exception.caught(_g).unwrap()) instanceof hxd_fs_NotFound)) {
-					props = null;
-				} else {
-					throw _g;
-				}
-			}
-			m = { lib : res.toHmd(), props : props};
-			this.models.h[path] = m;
-		}
-		return m;
-	}
-	,loadModel: function(res) {
-		var m = this.loadLibraryData(res);
-		var _g = $bind(this,this.loadTexture);
-		var model = res;
-		var tmp = function(texturePath) {
-			return _g(model,texturePath);
-		};
-		return m.lib.makeObject(tmp);
-	}
-	,loadTexture: function(model,texturePath) {
-		var fullPath = texturePath;
-		if(model != null) {
-			fullPath = model.entry.get_path() + "@" + fullPath;
-		}
-		var t = this.textures.h[fullPath];
-		if(t != null) {
-			return t;
-		}
-		var tres;
-		try {
-			tres = hxd_res_Loader.currentInstance.load(texturePath);
-		} catch( _g ) {
-			var _g1 = haxe_Exception.caught(_g).unwrap();
-			if(((_g1) instanceof hxd_fs_NotFound)) {
-				var error = _g1;
-				if(model == null) {
-					throw haxe_Exception.thrown(error);
-				}
-				var path = model.entry.get_directory();
-				if(path != "") {
-					path += "/";
-				}
-				path += texturePath.split("/").pop();
-				try {
-					tres = hxd_res_Loader.currentInstance.load(path);
-				} catch( _g1 ) {
-					if(((haxe_Exception.caught(_g1).unwrap()) instanceof hxd_fs_NotFound)) {
-						try {
-							var name = path.split("/").pop();
-							var c = name.charAt(0);
-							if(c == c.toLowerCase()) {
-								name = c.toUpperCase() + HxOverrides.substr(name,1,null);
-							} else {
-								name = c.toLowerCase() + HxOverrides.substr(name,1,null);
-							}
-							path = HxOverrides.substr(path,0,-name.length) + name;
-							tres = hxd_res_Loader.currentInstance.load(path);
-						} catch( _g2 ) {
-							if(((haxe_Exception.caught(_g2).unwrap()) instanceof hxd_fs_NotFound)) {
-								throw haxe_Exception.thrown(error);
-							} else {
-								throw _g2;
-							}
-						}
-					} else {
-						throw _g1;
-					}
-				}
-			} else {
-				throw _g;
-			}
-		}
-		t = tres.toTexture();
-		this.textures.h[fullPath] = t;
-		return t;
-	}
-	,loadAnimation: function(anim,name,forModel) {
-		var path = anim.entry.get_path();
-		if(name != null) {
-			path += ":" + name;
-		}
-		var a = this.anims.h[path];
-		if(a != null) {
-			return a;
-		}
-		a = this.initAnimation(anim,name,forModel);
-		this.anims.h[path] = a;
-		return a;
-	}
-	,setAnimationProps: function(a,resName,props) {
-		if(props == null || props.animations == null) {
-			return;
-		}
-		var n = props.animations[resName];
-		if(n != null && n.events != null) {
-			a.setEvents(n.events);
-		}
-	}
-	,initAnimation: function(res,name,forModel) {
-		var m = this.loadLibraryData(res);
-		var a = m.lib.loadAnimation(name);
-		this.setAnimationProps(a,res.entry.name,m.props);
-		if(forModel != null) {
-			var m = this.loadLibraryData(forModel);
-			this.setAnimationProps(a,res.entry.name,m.props);
-		}
-		return a;
-	}
-	,__class__: h3d_prim_ModelCache
-};
-var h3d_prim_Plane2D = function() {
-	h3d_prim_Primitive.call(this);
-};
-$hxClasses["h3d.prim.Plane2D"] = h3d_prim_Plane2D;
-h3d_prim_Plane2D.__name__ = "h3d.prim.Plane2D";
-h3d_prim_Plane2D.get = function() {
-	var engine = h3d_Engine.CURRENT;
-	var inst = engine.resCache.h[h3d_prim_Plane2D.__id__];
-	if(inst == null) {
-		inst = new h3d_prim_Plane2D();
-		engine.resCache.set(h3d_prim_Plane2D,inst);
-	}
-	return inst;
-};
-h3d_prim_Plane2D.__super__ = h3d_prim_Primitive;
-h3d_prim_Plane2D.prototype = $extend(h3d_prim_Primitive.prototype,{
-	triCount: function() {
-		return 2;
-	}
-	,vertexCount: function() {
-		return 4;
-	}
-	,alloc: function(engine) {
-		var this1 = hxd__$FloatBuffer_Float32Expand._new(0);
-		var v = this1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = -1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = -1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 0;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = -1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 0;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 0;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = -1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 1;
-		if(v.pos == v.array.length) {
-			var newSize = v.array.length << 1;
-			if(newSize < 128) {
-				newSize = 128;
-			}
-			var newArray = new Float32Array(newSize);
-			newArray.set(v.array);
-			v.array = newArray;
-		}
-		v.array[v.pos++] = 0;
-		this.buffer = h3d_Buffer.ofFloats(v,4,[h3d_BufferFlag.Quads,h3d_BufferFlag.RawFormat]);
-	}
-	,render: function(engine) {
-		var tmp;
-		if(this.buffer != null) {
-			var _this = this.buffer;
-			tmp = _this.buffer == null || _this.buffer.vbuf == null;
-		} else {
-			tmp = true;
-		}
-		if(tmp) {
-			this.alloc(engine);
-		}
-		engine.renderBuffer(this.buffer,engine.mem.quadIndexes,2,0,-1);
-	}
-	,__class__: h3d_prim_Plane2D
-});
 var h3d_prim_Polygon = function(points,idx) {
 	this.translatedZ = 0.;
 	this.translatedY = 0.;
@@ -39672,6 +39363,633 @@ h3d_prim_Polygon.prototype = $extend(h3d_prim_MeshPrimitive.prototype,{
 		}
 	}
 	,__class__: h3d_prim_Polygon
+});
+var h3d_prim_Grid = function(width,height,cellWidth,cellHeight) {
+	if(cellHeight == null) {
+		cellHeight = 1.;
+	}
+	if(cellWidth == null) {
+		cellWidth = 1.;
+	}
+	this.width = width;
+	this.height = height;
+	this.cellWidth = cellWidth;
+	this.cellHeight = cellHeight;
+	var this1 = new Array(0);
+	var idx = this1;
+	var _g = 0;
+	var _g1 = height;
+	while(_g < _g1) {
+		var y = _g++;
+		var _g2 = 0;
+		var _g3 = width;
+		while(_g2 < _g3) {
+			var x = _g2++;
+			var s = x + y * (width + 1);
+			idx.push(s);
+			idx.push(s + 1);
+			idx.push(s + width + 1);
+			idx.push(s + 1);
+			idx.push(s + width + 2);
+			idx.push(s + width + 1);
+		}
+	}
+	var _g = [];
+	var _g1 = 0;
+	var _g2 = height + 1;
+	while(_g1 < _g2) {
+		var y = _g1++;
+		var _g3 = 0;
+		var _g4 = width + 1;
+		while(_g3 < _g4) {
+			var x = _g3++;
+			_g.push(new h3d_col_Point(x * cellWidth,y * cellHeight,0));
+		}
+	}
+	h3d_prim_Polygon.call(this,_g,idx);
+};
+$hxClasses["h3d.prim.Grid"] = h3d_prim_Grid;
+h3d_prim_Grid.__name__ = "h3d.prim.Grid";
+h3d_prim_Grid.__super__ = h3d_prim_Polygon;
+h3d_prim_Grid.prototype = $extend(h3d_prim_Polygon.prototype,{
+	addUVs: function() {
+		this.uvs = [];
+		var _g = 0;
+		var _g1 = this.points.length;
+		while(_g < _g1) {
+			var i = _g++;
+			var y = Math.floor(i / (this.width + 1));
+			var x = i - y * (this.width + 1);
+			this.uvs.push(new h3d_prim_UV(x / this.width,y / this.height));
+		}
+	}
+	,__class__: h3d_prim_Grid
+});
+var h3d_prim_HMDModel = function(data,dataPos,lib) {
+	this.bufferAliases = new haxe_ds_StringMap();
+	h3d_prim_MeshPrimitive.call(this);
+	this.data = data;
+	this.dataPosition = dataPos;
+	this.lib = lib;
+};
+$hxClasses["h3d.prim.HMDModel"] = h3d_prim_HMDModel;
+h3d_prim_HMDModel.__name__ = "h3d.prim.HMDModel";
+h3d_prim_HMDModel.__super__ = h3d_prim_MeshPrimitive;
+h3d_prim_HMDModel.prototype = $extend(h3d_prim_MeshPrimitive.prototype,{
+	triCount: function() {
+		return this.data.get_indexCount() / 3 | 0;
+	}
+	,vertexCount: function() {
+		return this.data.vertexCount;
+	}
+	,getBounds: function() {
+		return this.data.bounds;
+	}
+	,selectMaterial: function(i) {
+		this.curMaterial = i;
+	}
+	,getDataBuffers: function(fmt,defaults,material) {
+		return this.lib.getBuffers(this.data,fmt,defaults,material);
+	}
+	,loadSkin: function(skin) {
+		this.lib.loadSkin(this.data,skin);
+	}
+	,addAlias: function(name,realName,offset) {
+		if(offset == null) {
+			offset = 0;
+		}
+		var old = this.bufferAliases.h[name];
+		if(old != null) {
+			if(old.realName != realName || old.offset != offset) {
+				throw haxe_Exception.thrown("Conflicting alias " + name);
+			}
+			return;
+		}
+		this.bufferAliases.h[name] = { realName : realName, offset : offset};
+		if(this.bufferCache != null) {
+			this.allocAlias(name);
+		}
+	}
+	,alloc: function(engine) {
+		this.dispose();
+		this.buffer = new h3d_Buffer(this.data.vertexCount,this.data.vertexStride,[h3d_BufferFlag.LargeBuffer]);
+		var entry = this.lib.resource.entry;
+		entry.open();
+		entry.skip(this.dataPosition + this.data.vertexPosition);
+		var size = this.data.vertexCount * this.data.vertexStride * 4;
+		var bytes = new haxe_io_Bytes(new ArrayBuffer(size));
+		entry.read(bytes,0,size);
+		this.buffer.uploadBytes(bytes,0,this.data.vertexCount);
+		this.indexCount = 0;
+		this.indexesTriPos = [];
+		var _g = 0;
+		var _g1 = this.data.indexCounts;
+		while(_g < _g1.length) {
+			var n = _g1[_g];
+			++_g;
+			this.indexesTriPos.push(this.indexCount / 3 | 0);
+			this.indexCount += n;
+		}
+		var is32 = this.data.vertexCount > 65536;
+		this.indexes = new h3d_Indexes(this.indexCount,is32);
+		entry.skip(this.data.indexPosition - (this.data.vertexPosition + size));
+		var imult = is32 ? 4 : 2;
+		var bytes = new haxe_io_Bytes(new ArrayBuffer(this.indexCount * imult));
+		entry.read(bytes,0,this.indexCount * imult);
+		this.indexes.uploadBytes(bytes,0,this.indexCount);
+		entry.close();
+		var pos = 0;
+		var _g = 0;
+		var _g1 = this.data.vertexFormat;
+		while(_g < _g1.length) {
+			var f = _g1[_g];
+			++_g;
+			this.addBuffer(f.name,this.buffer,pos);
+			pos += f.format & 7;
+		}
+		if(this.normalsRecomputed != null) {
+			this.recomputeNormals(this.normalsRecomputed);
+		}
+		var name = haxe_ds_StringMap.keysIterator(this.bufferAliases.h);
+		while(name.hasNext()) {
+			var name1 = name.next();
+			this.allocAlias(name1);
+		}
+	}
+	,allocAlias: function(name) {
+		var alias = this.bufferAliases.h[name];
+		var this1 = this.bufferCache;
+		var key = hxsl_Globals.allocID(alias.realName);
+		var buffer = this1.h[key];
+		if(buffer == null) {
+			throw haxe_Exception.thrown("Buffer " + alias.realName + " not found for alias " + name);
+		}
+		if(buffer.offset + alias.offset > buffer.buffer.buffer.stride) {
+			throw haxe_Exception.thrown("Alias " + name + " for buffer " + alias.realName + " outside stride");
+		}
+		this.addBuffer(name,buffer.buffer,buffer.offset + alias.offset);
+	}
+	,recomputeNormals: function(name) {
+		if(name == null) {
+			name = "normal";
+		}
+		var pos = this.lib.getBuffers(this.data,[new hxd_fmt_hmd_GeometryFormat("position",3)]);
+		var ids = [];
+		var pts = [];
+		var _g = 0;
+		var _g1 = this.data.vertexCount;
+		while(_g < _g1) {
+			var i = _g++;
+			var added = false;
+			var px = pos.vertexes[i * 3];
+			var py = pos.vertexes[i * 3 + 1];
+			var pz = pos.vertexes[i * 3 + 2];
+			var _g2 = 0;
+			var _g3 = pts.length;
+			while(_g2 < _g3) {
+				var i1 = _g2++;
+				var p = pts[i1];
+				if(p.x == px && p.y == py && p.z == pz) {
+					ids.push(i1);
+					added = true;
+					break;
+				}
+			}
+			if(!added) {
+				ids.push(pts.length);
+				pts.push(new h3d_col_Point(px,py,pz));
+			}
+		}
+		var this1 = new Array(0);
+		var idx = this1;
+		var _g = 0;
+		var _g1 = pos.indexes;
+		while(_g < _g1.length) {
+			var i = _g1[_g];
+			++_g;
+			idx.push(ids[i]);
+		}
+		var pol = new h3d_prim_Polygon(pts,idx);
+		pol.addNormals();
+		var this1 = hxd__$FloatBuffer_Float32Expand._new(0);
+		var v = this1;
+		var _g = v.pos;
+		var _g1 = this.data.vertexCount * 3;
+		while(_g < _g1) {
+			var i = _g++;
+			if(v.pos == v.array.length) {
+				var newSize = v.array.length << 1;
+				if(newSize < 128) {
+					newSize = 128;
+				}
+				var newArray = new Float32Array(newSize);
+				newArray.set(v.array);
+				v.array = newArray;
+			}
+			v.array[v.pos++] = 0.;
+		}
+		var k = 0;
+		var _g = 0;
+		var _g1 = this.data.vertexCount;
+		while(_g < _g1) {
+			var i = _g++;
+			var n = pol.normals[ids[i]];
+			v.array[k++] = n.x;
+			v.array[k++] = n.y;
+			v.array[k++] = n.z;
+		}
+		var buf = h3d_Buffer.ofFloats(v,3);
+		this.addBuffer(name,buf,0);
+		this.normalsRecomputed = name;
+	}
+	,render: function(engine) {
+		if(this.curMaterial < 0) {
+			h3d_prim_MeshPrimitive.prototype.render.call(this,engine);
+			return;
+		}
+		if(this.indexes == null || this.indexes.isDisposed()) {
+			this.alloc(engine);
+		}
+		engine.renderMultiBuffers(this.getBuffers(engine),this.indexes,this.indexesTriPos[this.curMaterial],this.data.indexCounts[this.curMaterial] / 3 | 0);
+		this.curMaterial = -1;
+	}
+	,initCollider: function(poly) {
+		var buf = this.lib.getBuffers(this.data,[new hxd_fmt_hmd_GeometryFormat("position",3)]);
+		poly.setData(buf.vertexes,buf.indexes);
+		if(this.collider == null) {
+			var _this = this.data.bounds;
+			var dx = _this.xMax - _this.xMin;
+			var dy = _this.yMax - _this.yMin;
+			var dz = _this.zMax - _this.zMin;
+			var sphere = new h3d_col_Sphere((_this.xMin + _this.xMax) * 0.5,(_this.yMin + _this.yMax) * 0.5,(_this.zMin + _this.zMax) * 0.5,Math.sqrt(dx * dx + dy * dy + dz * dz) * 0.5);
+			this.collider = new h3d_col_OptimizedCollider(sphere,poly);
+		}
+	}
+	,getCollider: function() {
+		if(this.collider != null) {
+			return this.collider;
+		}
+		var poly = new h3d_col_PolygonBuffer();
+		poly.source = { entry : this.lib.resource.entry, geometryName : null};
+		var _g = 0;
+		var _g1 = this.lib.header.models;
+		while(_g < _g1.length) {
+			var h = _g1[_g];
+			++_g;
+			if(this.lib.header.geometries[h.geometry] == this.data) {
+				poly.source.geometryName = h.name;
+				break;
+			}
+		}
+		this.initCollider(poly);
+		return this.collider;
+	}
+	,__class__: h3d_prim_HMDModel
+});
+var h3d_prim_ModelCache = function() {
+	this.models = new haxe_ds_StringMap();
+	this.textures = new haxe_ds_StringMap();
+	this.anims = new haxe_ds_StringMap();
+};
+$hxClasses["h3d.prim.ModelCache"] = h3d_prim_ModelCache;
+h3d_prim_ModelCache.__name__ = "h3d.prim.ModelCache";
+h3d_prim_ModelCache.prototype = {
+	dispose: function() {
+		this.anims = new haxe_ds_StringMap();
+		this.models = new haxe_ds_StringMap();
+		var t = haxe_ds_StringMap.valueIterator(this.textures.h);
+		while(t.hasNext()) {
+			var t1 = t.next();
+			t1.dispose();
+		}
+		this.textures = new haxe_ds_StringMap();
+	}
+	,loadLibrary: function(res) {
+		return this.loadLibraryData(res).lib;
+	}
+	,loadLibraryData: function(res) {
+		var path = res.entry.get_path();
+		var m = this.models.h[path];
+		if(m == null) {
+			var props;
+			try {
+				var parts = path.split(".");
+				parts.pop();
+				parts.push("props");
+				props = JSON.parse(hxd_res_Loader.currentInstance.load(parts.join(".")).toText());
+			} catch( _g ) {
+				if(((haxe_Exception.caught(_g).unwrap()) instanceof hxd_fs_NotFound)) {
+					props = null;
+				} else {
+					throw _g;
+				}
+			}
+			m = { lib : res.toHmd(), props : props};
+			this.models.h[path] = m;
+		}
+		return m;
+	}
+	,loadModel: function(res) {
+		var m = this.loadLibraryData(res);
+		var _g = $bind(this,this.loadTexture);
+		var model = res;
+		var tmp = function(texturePath) {
+			return _g(model,texturePath);
+		};
+		return m.lib.makeObject(tmp);
+	}
+	,loadTexture: function(model,texturePath) {
+		var fullPath = texturePath;
+		if(model != null) {
+			fullPath = model.entry.get_path() + "@" + fullPath;
+		}
+		var t = this.textures.h[fullPath];
+		if(t != null) {
+			return t;
+		}
+		var tres;
+		try {
+			tres = hxd_res_Loader.currentInstance.load(texturePath);
+		} catch( _g ) {
+			var _g1 = haxe_Exception.caught(_g).unwrap();
+			if(((_g1) instanceof hxd_fs_NotFound)) {
+				var error = _g1;
+				if(model == null) {
+					throw haxe_Exception.thrown(error);
+				}
+				var path = model.entry.get_directory();
+				if(path != "") {
+					path += "/";
+				}
+				path += texturePath.split("/").pop();
+				try {
+					tres = hxd_res_Loader.currentInstance.load(path);
+				} catch( _g1 ) {
+					if(((haxe_Exception.caught(_g1).unwrap()) instanceof hxd_fs_NotFound)) {
+						try {
+							var name = path.split("/").pop();
+							var c = name.charAt(0);
+							if(c == c.toLowerCase()) {
+								name = c.toUpperCase() + HxOverrides.substr(name,1,null);
+							} else {
+								name = c.toLowerCase() + HxOverrides.substr(name,1,null);
+							}
+							path = HxOverrides.substr(path,0,-name.length) + name;
+							tres = hxd_res_Loader.currentInstance.load(path);
+						} catch( _g2 ) {
+							if(((haxe_Exception.caught(_g2).unwrap()) instanceof hxd_fs_NotFound)) {
+								throw haxe_Exception.thrown(error);
+							} else {
+								throw _g2;
+							}
+						}
+					} else {
+						throw _g1;
+					}
+				}
+			} else {
+				throw _g;
+			}
+		}
+		t = tres.toTexture();
+		this.textures.h[fullPath] = t;
+		return t;
+	}
+	,loadAnimation: function(anim,name,forModel) {
+		var path = anim.entry.get_path();
+		if(name != null) {
+			path += ":" + name;
+		}
+		var a = this.anims.h[path];
+		if(a != null) {
+			return a;
+		}
+		a = this.initAnimation(anim,name,forModel);
+		this.anims.h[path] = a;
+		return a;
+	}
+	,setAnimationProps: function(a,resName,props) {
+		if(props == null || props.animations == null) {
+			return;
+		}
+		var n = props.animations[resName];
+		if(n != null && n.events != null) {
+			a.setEvents(n.events);
+		}
+	}
+	,initAnimation: function(res,name,forModel) {
+		var m = this.loadLibraryData(res);
+		var a = m.lib.loadAnimation(name);
+		this.setAnimationProps(a,res.entry.name,m.props);
+		if(forModel != null) {
+			var m = this.loadLibraryData(forModel);
+			this.setAnimationProps(a,res.entry.name,m.props);
+		}
+		return a;
+	}
+	,__class__: h3d_prim_ModelCache
+};
+var h3d_prim_Plane2D = function() {
+	h3d_prim_Primitive.call(this);
+};
+$hxClasses["h3d.prim.Plane2D"] = h3d_prim_Plane2D;
+h3d_prim_Plane2D.__name__ = "h3d.prim.Plane2D";
+h3d_prim_Plane2D.get = function() {
+	var engine = h3d_Engine.CURRENT;
+	var inst = engine.resCache.h[h3d_prim_Plane2D.__id__];
+	if(inst == null) {
+		inst = new h3d_prim_Plane2D();
+		engine.resCache.set(h3d_prim_Plane2D,inst);
+	}
+	return inst;
+};
+h3d_prim_Plane2D.__super__ = h3d_prim_Primitive;
+h3d_prim_Plane2D.prototype = $extend(h3d_prim_Primitive.prototype,{
+	triCount: function() {
+		return 2;
+	}
+	,vertexCount: function() {
+		return 4;
+	}
+	,alloc: function(engine) {
+		var this1 = hxd__$FloatBuffer_Float32Expand._new(0);
+		var v = this1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = -1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = -1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 0;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = -1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 0;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 0;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = -1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 1;
+		if(v.pos == v.array.length) {
+			var newSize = v.array.length << 1;
+			if(newSize < 128) {
+				newSize = 128;
+			}
+			var newArray = new Float32Array(newSize);
+			newArray.set(v.array);
+			v.array = newArray;
+		}
+		v.array[v.pos++] = 0;
+		this.buffer = h3d_Buffer.ofFloats(v,4,[h3d_BufferFlag.Quads,h3d_BufferFlag.RawFormat]);
+	}
+	,render: function(engine) {
+		var tmp;
+		if(this.buffer != null) {
+			var _this = this.buffer;
+			tmp = _this.buffer == null || _this.buffer.vbuf == null;
+		} else {
+			tmp = true;
+		}
+		if(tmp) {
+			this.alloc(engine);
+		}
+		engine.renderBuffer(this.buffer,engine.mem.quadIndexes,2,0,-1);
+	}
+	,__class__: h3d_prim_Plane2D
 });
 var h3d_prim_RawPrimitive = function(inf,persist) {
 	if(persist == null) {
@@ -82612,7 +82930,7 @@ var Float = Number;
 var Bool = Boolean;
 var Class = { };
 var Enum = { };
-haxe_Resource.content = [];
+haxe_Resource.content = [{ name : "R_gridtex_png", data : "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAD9JREFUWIXt17ERADAMwkA55/1XJkWabEAjLcC3TJJQbAFmpjKehFNZ/hIgQIAAAQIECBAgQIAAAQIW3kttdQFEgAo95aZ2mwAAAABJRU5ErkJggg"}];
 haxe_ds_ObjectMap.count = 0;
 haxe_MainLoop.add(hxd_System.updateCursor,-1);
 var hx__registerFont;
@@ -82638,6 +82956,7 @@ if(ArrayBuffer.prototype.slice == null) {
 	ArrayBuffer.prototype.slice = js_lib__$ArrayBuffer_ArrayBufferCompat.sliceImpl;
 }
 Main.MOVE_LENGTH = 0.15;
+Main.editor_buttons = ["Player","C1","C2","0_Floor","0_Ramp","1_Floor","1_Ramp","2_Floor","2_Ramp","3_Floor","3_Ramp","4_Floor","Wall"];
 Xml.Element = 0;
 Xml.PCData = 1;
 Xml.CData = 2;
