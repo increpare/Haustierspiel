@@ -1,3 +1,7 @@
+import h3d.prim.Cube;
+import h3d.mat.BaseMaterial;
+import h3d.mat.Material;
+import format.abc.Data.Function;
 import js.html.ObserverCallback;
 import h3d.prim.Grid;
 import h3d.mat.BlendMode;
@@ -37,12 +41,17 @@ class Main extends SampleApp {
 
 	var cache:h3d.prim.ModelCache;
 
-	var prefabs:Map<String, h3d.scene.Object>;
+	var prefabs:Map<String, Mesh>;
 	var gamestate:GameState;
 
 	var obs_static:h3d.scene.Object;
+	var obs_static_grid:Array<Array<h3d.scene.Object>>;
+
 	var obs_dynamic:h3d.scene.Object;
-	var obs_editor:h3d.scene.Object;
+	
+	var editor_gui:h3d.scene.Object;
+	var editor_basegrid:h3d.scene.Object;
+
 	var player_obj:h3d.scene.Object;
 	var c1_obj:h3d.scene.Object;
 	var c2_obj:h3d.scene.Object;
@@ -51,7 +60,10 @@ class Main extends SampleApp {
 	var config_dat:ConfigDat;
 	var editormode:Bool = false;
 	var editor_sel:Int = 0;
-	var editor_grid:Object;
+
+
+	var editor_toolbar_interacts : Array<h3d.scene.Interactive>;
+	var editor_basegrid_interacts : Array<h3d.scene.Interactive>;
 
 	public static function Rotation(rotInt:Int):Float {
 		return (2 + rotInt) * Math.PI / 2.0;
@@ -59,39 +71,73 @@ class Main extends SampleApp {
 
 	function RenderLevel(rebuildstatic:Bool) {
 		if (rebuildstatic) {
+			editor_basegrid_interacts=[];
+			obs_static_grid=[];
+
 			obs_static.removeChildren();
 			for (j in 0...gamestate.Tiles.length) {
 				var tileRow = gamestate.Tiles[j];
+				var obs_static_grid_ROW:Array<h3d.scene.Object> = [];
+
 				for (i in 0...tileRow.length) {
+					//create little cube
+
+					
+					var obj:Mesh=null;
+					
 					var tile = tileRow[i];
-					if (tile == null)
-						continue;
-					switch (tile.ramp_direction) {
-						case NONE:
-							if (tile.height == 20) { // wall
-								var floor:Int = Std.int((tile.height - 4) / 2);
+					if (tile == null){						
+						//add mesh cubes only when there's no tile.
+						var cubey = new h3d.prim.Cube(1.8,1.8,0,true);
+						cubey.addNormals();
+						cubey.addUVs();
+						obj = new Mesh(cubey, editor_grid_mat);
+						obj.setPosition(i * 2, j * 2, 0);
+						editor_basegrid.addChild(obj);
+	
+						obs_static_grid_ROW.push(null);			
+					} else {
+						switch (tile.ramp_direction) {
+							case NONE:
+								if (tile.height == 20) { // wall
+									var floor:Int = Std.int((tile.height - 4) / 2);
+									var dir:GameState.Direction = S;
+									obj = cast(prefabs["Wall"].clone(),Mesh);
+									obs_static.addChild(obj);
+									obj.setPosition(i * 2, j * 2, 0);
+									obs_static_grid_ROW.push(obj);
+								} else {
+									var floor:Int = Std.int((tile.height - 4) / 2);
+									var dir:GameState.Direction = S;
+									obj = cast(prefabs[Std.string(floor) + "_Floor"].clone(),Mesh);
+									obs_static.addChild(obj);
+									obj.setPosition(i * 2, j * 2, 0);
+									obs_static_grid_ROW.push(obj);
+								}
+							default:
+								var floor:Int = Std.int((tile.height - 6) / 2);
 								var dir:GameState.Direction = S;
-								var obj = prefabs["Wall"].clone();
+								// trace("height " + Std.string(tile.height));
+								// trace(Std.string(floor) + "_Ramp");
+								obj = cast(prefabs[Std.string(floor) + "_Ramp"].clone(),Mesh);
 								obs_static.addChild(obj);
 								obj.setPosition(i * 2, j * 2, 0);
-							} else {
-								var floor:Int = Std.int((tile.height - 4) / 2);
-								var dir:GameState.Direction = S;
-								var obj = prefabs[Std.string(floor) + "_Floor"].clone();
-								obs_static.addChild(obj);
-								obj.setPosition(i * 2, j * 2, 0);
-							}
-						default:
-							var floor:Int = Std.int((tile.height - 6) / 2);
-							var dir:GameState.Direction = S;
-							// trace("height " + Std.string(tile.height));
-							// trace(Std.string(floor) + "_Ramp");
-							var obj = prefabs[Std.string(floor) + "_Ramp"].clone();
-							obs_static.addChild(obj);
-							obj.setPosition(i * 2, j * 2, 0);
-							obj.setRotation(0, 0, Rotation(tile.ramp_direction));
+								obj.setRotation(0, 0, Rotation(tile.ramp_direction));
+								obs_static_grid_ROW.push(obj);
+						}
 					}
-				}
+					
+					var interact : h3d.scene.Interactive = new h3d.scene.Interactive(obj.getCollider(), s3d);
+					editor_basegrid_interacts.push(interact);
+					interact.remove();
+					Editor_Basegrid_Interact(interact, obj, (function(int_i,int_j) {
+						return function() {
+							onBasegridButtonClick(int_i,int_j);
+						}
+					})(i,j), i, j);
+
+				}				
+				obs_static_grid.push(obs_static_grid_ROW);
 			}
 		}
 
@@ -341,13 +387,42 @@ class Main extends SampleApp {
 
 	function EditorUpdate() {
 		if (!editormode) {
-			obs_editor.visible = false;
-			editor_grid.visible = false;
+			editor_gui.visible = false;
+			editor_basegrid.visible = false;
+
+			for (i in 0...editor_toolbar_interacts.length){
+				var ei = editor_toolbar_interacts[i];
+				if (ei.parent!=null){
+					ei.remove();
+				}
+			}
+			
+			for (i in 0...editor_basegrid_interacts.length){
+				var ei = editor_basegrid_interacts[i];
+				if (ei.parent!=null){
+					ei.remove();
+				}
+			}
 			return;
 		}
 
-		obs_editor.visible = true;
-		editor_grid.visible = true;
+		editor_gui.visible = true;
+		for (i in 0...editor_toolbar_interacts.length){
+			var ei = editor_toolbar_interacts[i];
+			if (ei.parent==null){
+				s3d.addChild(ei);
+			}
+		}
+
+		for (i in 0...editor_basegrid_interacts.length){
+			var ei = editor_basegrid_interacts[i];
+			if (ei.parent==null){
+				s3d.addChild(ei);
+			}
+		}
+
+
+		editor_basegrid.visible = true;
 
 		if (hxd.Key.isDown(hxd.Key.NUMBER_1)) {
 			editor_sel = 0;
@@ -377,7 +452,7 @@ class Main extends SampleApp {
 			editor_sel = 12;
 		}
 
-		var buttonlist = obs_editor.getChildAt(0);
+		var buttonlist = editor_gui.getChildAt(0);
 		for (i in 0...editor_buttons.length) {
 			var mesh:Array<Mesh> = buttonlist.getChildAt(i).getMeshes();
 			mesh[0].material = i == editor_sel ? noalphamat : alphamat;
@@ -393,7 +468,7 @@ class Main extends SampleApp {
 		down = down.multiply(1.8);
 		editor_list_pos = editor_list_pos.add(down);
 
-		obs_editor.setPosition(editor_list_pos.x, editor_list_pos.y, editor_list_pos.z);
+		editor_gui.setPosition(editor_list_pos.x, editor_list_pos.y, editor_list_pos.z);
 	}
 
 	override function update(dt:Float) {
@@ -440,11 +515,99 @@ class Main extends SampleApp {
 		"Player", "C1", "C2", "0_Floor", "0_Ramp", "1_Floor", "1_Ramp", "2_Floor", "2_Ramp", "3_Floor", "3_Ramp", "4_Floor", "Wall"
 	];
 
+	function Editor_Basegrid_Interact(i:h3d.scene.Interactive, m:h3d.scene.Mesh, onclick:Void->Void, x:Int,y:Int){
+		var beacon = null;
+		var color = m.material.color.clone();
+		i.bestMatch = true;
+		var scale = m.scaleX;
+		i.onClick = function(e:hxd.Event) {
+			onclick();
+		}
+		i.onOver = function(e:hxd.Event) {
+			// if (editor_sel != idx) {
+				m.setScale(scale*1.1);
+				var o : Mesh = cast(obs_static_grid[y][x], Mesh);
+				if (o!=null){
+					o.material.blendMode = h3d.mat.BlendMode.Add;
+				}
+
+			// };
+			//   var s = new h3d.prim.Sphere(1, 32, 32);
+			//   s.addNormals();
+			//   beacon = new h3d.scene.Mesh(s, s3d);
+			//   beacon.material.mainPass.enableLights = true;
+			//   beacon.material.color.set(1, 0, 0);
+			//   beacon.scale(0.01);
+			//   beacon.x = e.relX;
+			//   beacon.y = e.relY;
+			//   beacon.z = e.relZ;
+		};
+		// i.onMove = i.onCheck = function(e:hxd.Event) {
+			// if (beacon == null)
+			// 	return;
+			// beacon.x = e.relX;
+			// beacon.y = e.relY;
+			// beacon.z = e.relZ;
+		// };
+		i.onOut = function(e:hxd.Event) {
+			m.setScale(scale);
+			var o : Mesh = cast(obs_static_grid[y][x], Mesh);
+			if (o!=null){
+				o.material.blendMode = h3d.mat.BlendMode.None;
+			}
+
+		};
+	}
+
+	function Editor_Toolbar_Interact(i:h3d.scene.Interactive, m:h3d.scene.Mesh, onclick:Void->Void, idx:Int) {
+		var beacon = null;
+		var color = m.material.color.clone();
+		i.bestMatch = true;
+		var scale = m.scaleX;
+		i.onClick = function(e:hxd.Event) {
+			onclick();
+		}
+		i.onOver = function(e:hxd.Event) {
+			// if (editor_sel != idx) {
+				m.setScale(scale*1.1);
+			// };
+			//   var s = new h3d.prim.Sphere(1, 32, 32);
+			//   s.addNormals();
+			//   beacon = new h3d.scene.Mesh(s, s3d);
+			//   beacon.material.mainPass.enableLights = true;
+			//   beacon.material.color.set(1, 0, 0);
+			//   beacon.scale(0.01);
+			//   beacon.x = e.relX;
+			//   beacon.y = e.relY;
+			//   beacon.z = e.relZ;
+		};
+		// i.onMove = i.onCheck = function(e:hxd.Event) {
+			// if (beacon == null)
+			// 	return;
+			// beacon.x = e.relX;
+			// beacon.y = e.relY;
+			// beacon.z = e.relZ;
+		// };
+		i.onOut = function(e:hxd.Event) {
+			m.setScale(scale);
+		};
+	}
+
+	function onBasegridButtonClick(i:Int,j:Int) {
+		editor_sel = i;
+		trace(i,j);
+	}
+
+	function onEditorToolbarButtonClick(i:Int) {
+		editor_sel = i;
+	}
+
 	function create_editor_array() {
-		// obs_dynamic.visible=false;
-		// obs_static.visible=false;
+		editor_toolbar_interacts=[];
+
+		
 		var button_list = new Object();
-		obs_editor.addChild(button_list);
+		editor_gui.addChild(button_list);
 		for (i in 0...editor_buttons.length) {
 			var button_name = editor_buttons[i];
 
@@ -465,16 +628,21 @@ class Main extends SampleApp {
 				obj.setRotation(0, 0, -Math.PI / 2);
 			}
 			obj.rotate(-15 * Math.PI * 2 / 360.0, 0, 0);
+
+			var m:Mesh = meshes[0];
+			var interact : h3d.scene.Interactive = new h3d.scene.Interactive(m.getCollider(), s3d);
+			editor_toolbar_interacts.push(interact);
+			interact.remove();
+			Editor_Toolbar_Interact(interact, m, (function(idx) {
+				return function() {
+					onEditorToolbarButtonClick(idx);
+				}
+			})(i), i);
 		}
 
 		var grid_poly:h3d.prim.Polygon = new Grid(1, 1, 1, 1);
 		grid_poly.addNormals();
 		grid_poly.addUVs();
-		
-		var editor_grid_mesh:Mesh = new Mesh(grid_poly, editorgridmat);
-
-		editor_grid = editor_grid_mesh;
-		s3d.addChild(editor_grid);
 	}
 
 	// stolen from https://github.com/Kha-Samples/heaps/blob/45babaddd41e38d16697adb35034f08a33193456/tools/fbx/Viewer.hx#L352
@@ -496,6 +664,9 @@ class Main extends SampleApp {
 
 	var alphamat:h3d.mat.Material;
 	var noalphamat:h3d.mat.Material;
+	var highlightmat:h3d.mat.Material;
+	var editor_grid_mat:h3d.mat.Material;
+
 	var editorgridmat:h3d.mat.Material;
 
 	override function init() {
@@ -503,12 +674,13 @@ class Main extends SampleApp {
 
 		obs_static = new h3d.scene.Object();
 		obs_dynamic = new h3d.scene.Object();
-		obs_editor = new h3d.scene.Object();
+		editor_gui = new h3d.scene.Object();
+		editor_basegrid = new h3d.scene.Object();
 		s3d.addChild(obs_static);
 		s3d.addChild(obs_dynamic);
-		s3d.addChild(obs_editor);
-		obs_static.visible = false;
-		obs_dynamic.visible = false;
+		s3d.addChild(editor_gui);
+		s3d.addChild(editor_basegrid);
+
 		var config_bytes = VirtualResources["config.json"];
 		var config_str = hxd.res.Any.fromBytes("config.json", config_bytes).toText();
 		config_dat = Json.parse(config_str);
@@ -522,7 +694,6 @@ class Main extends SampleApp {
 		var tex_res:Any = hxd.res.Any.fromBytes("blends/texture.png", VirtualResources["blends/texture.png"]);
 		var tex:Texture = tex_res.toTexture();
 
-		var tex_grid = hxd.Res.gridtex.toTexture();
 
 		var materials:Array<h3d.mat.Material> = new Array<h3d.mat.Material>();
 		obj.getMaterials(materials, true);
@@ -539,8 +710,20 @@ class Main extends SampleApp {
 		noalphamat = h3d.mat.Material.create(tex);
 		noalphamat.blendMode = BlendMode.None;
 
-		editorgridmat = h3d.mat.Material.create(tex_grid);
-		editorgridmat.blendMode = BlendMode.Add;
+		editor_grid_mat = h3d.mat.Material.create();
+		// editor_grid_mat.blendMode = BlendMode.Add;
+		// editor_grid_mat.color.setColor(0xffffff);
+		editor_grid_mat.mainPass.depth(true,Always);
+		editor_grid_mat.mainPass.layer = 100;
+		editor_grid_mat.mainPass.setPassName("alpha");
+		editor_grid_mat.blendMode = BlendMode.Alpha;
+		editor_grid_mat.shadows=false;
+		editor_grid_mat.castShadows=false;
+		editor_grid_mat.color.a = 0.1;
+		
+		highlightmat = h3d.mat.Material.create(tex);
+		highlightmat.blendMode = BlendMode.Add;
+		highlightmat.color.a = 1.0;
 
 		obj.applyAnimationTransform(true);
 
@@ -549,7 +732,7 @@ class Main extends SampleApp {
 
 		// print name of all children of obj
 		var n = obj.numChildren;
-		prefabs = new Map<String, h3d.scene.Object>();
+		prefabs = new Map<String, Mesh>();
 		for (i in 0...n) {
 			var child:h3d.scene.Object = obj.getChildAt(i);
 			var transform = child.getTransform();
@@ -557,7 +740,7 @@ class Main extends SampleApp {
 			// transform.rotate(Math.PI,0,0);
 			child.setTransform(transform);
 			child.scale(1);
-			prefabs[child.name] = child;
+			prefabs[child.name] = cast(child,Mesh);
 
 			// var c = child.clone();
 
