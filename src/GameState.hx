@@ -1,5 +1,7 @@
 package;
 
+import js.lib.Set;
+import haxe.Int64;
 import StringTools;
 
 class Coordinate {
@@ -33,8 +35,7 @@ enum abstract Direction(Int) to Int {
 	var N=0;
 	var E=1;
 	var S=2;
-	var W=3;
-    
+	var W=3;   
 }
 
 class Tile implements Positional {
@@ -106,6 +107,16 @@ class Entity implements Positional {
 	}
 }
 
+
+class FromData {
+	public var hash:Int64;
+	public var wert:Float;
+	public function new(_hash:Int64,_wert:Float){
+		hash=_hash;
+		wert=_wert;
+	}
+}
+
 class GameState {
 	public var w:Int;
 	public var h:Int;
@@ -113,6 +124,277 @@ class GameState {
 	public var p:Entity;
 	public var c1:Entity;
 	public var c2:Entity;
+
+	//14-bits per entity = 42 for a full state
+	//x:0-32 (5)
+	//y:0-32 (5)
+	//z:0-32 (5)
+	
+	public function Heuristic():Float{
+		//distance between c1 and c2
+		var dx = c1.x-c2.x;
+		var dy = c1.y-c2.y;
+		var dist2 = 2-(Math.abs(dx)+Math.abs(dy));
+		if (!(dx==0||dy==0)){
+			dist2+=0.5;
+		}
+
+		var mx = (c1.x+c2.x)/2;
+		var my = (c1.y+c2.y)/2;
+		var ddx = mx-p.x;
+		var ddy = my-p.y;
+		var ddist2 =  Math.abs(ddx)+Math.abs(ddy);
+		return dist2*1024 + ddist2;		
+	}
+
+	public function canMove(entity:GameState.Entity, d:GameState.Direction):Bool {
+		var dx = 0;
+		var dy = 0;
+		switch (d) {
+			case W:
+				dx = -1;
+			case E:
+				dx = 1;
+			case N:
+				dy = -1;
+			case S:
+				dy = 1;
+		}
+		var tx:Int = entity.x + dx;
+		var ty:Int = entity.y + dy;
+		var curtile = TileAt(entity.x, entity.y);
+		var tile = TileAt(tx, ty);
+		if (tile == null)
+			return false;
+		if (tile.isWall())
+			return false;
+
+		// if moving uphill
+		if (curtile.heightCoord() < tile.heightCoord()) {
+			if (tile.ramp_direction != NONE && Std.int(tile.ramp_direction) != Std.int(d))
+				return false;
+			// if you're on a ramp, can only move uphill in the ramp direction
+			if (curtile.ramp_direction != NONE) {
+				if (Std.int(curtile.ramp_direction) != Std.int(d))
+					return false;
+			}
+			// if source and target are not ramps, can't move
+			if (curtile.ramp_direction == NONE && tile.ramp_direction == NONE)
+				return false;
+			// you can never ascend by more than 2 units
+			if (curtile.heightCoord() + 2 < tile.heightCoord())
+				return false;
+		}
+		// if both are ramps
+		if (curtile.ramp_direction != NONE && tile.ramp_direction != NONE) {
+			// if the target is going in your direction, it's always good
+			if (Std.int(tile.ramp_direction) == Std.int(d)) {} else if (curtile.heightCoord() > tile.heightCoord()) {
+				// if we're going downhill, it's good
+			} else {
+				// check both in the same direction or both in the opposite direction
+				if (Std.int(curtile.ramp_direction) == Std.int(tile.ramp_direction)) {
+					// both in the same direction, ok
+				} else if (Std.int(curtile.ramp_direction) == GameState.Tile.FlipDirection(Std.int(tile.ramp_direction))) {
+					if (Std.int(d) == Std.int(curtile.ramp_direction)) {
+						// both in opposite direction and player moving in same direction as current ramp, ok
+					} else {
+						return false;
+					}
+				} else {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	public function tryMove(entity, d:GameState.Direction, canChain:Bool, canTurn:Bool):Bool {
+		if (!canMove(entity, d))
+			return false;
+
+		var dx = 0;
+		var dy = 0;
+		switch (d) {
+			case W:
+				dx = -1;
+			case E:
+				dx = 1;
+			case N:
+				dy = -1;
+			case S:
+				dy = 1;
+		}
+		var tx:Int = entity.x + dx;
+		var ty:Int = entity.y + dy;
+
+		// check if entity at target location
+		var ents = CharactersAt(tx, ty);
+		if (ents.length > 0) {
+			if (canChain == false) {
+				return false;
+			} else {
+				var ent_under:GameState.Entity = ents[0];
+				// if ent_under below you, you can step on it
+				if (ent_under.altitude + ent_under.height < entity.altitude) {
+					// nothing to do
+				} else {
+					// otherwise, try push
+					if (tryMove(ent_under, d, false, false) == false) {
+						return false;
+					}
+					// move upper in parallel, if any
+					if (ents.length > 1) {
+						var ent_above:GameState.Entity = ents[1];
+
+						ent_above.fromx = ent_above.x;
+						ent_above.fromy = ent_above.y;
+						ent_above.fromaltitude = ent_above.altitude;
+
+						ent_above.x = ent_under.x;
+						ent_above.y = ent_under.y;
+						ent_above.altitude = ent_under.altitude + ent_under.height;
+					}
+				}
+			}
+		}
+
+		var tile = TileAt(tx, ty);
+
+		entity.fromx = entity.x;
+		entity.fromy = entity.y;
+		entity.fromaltitude = entity.altitude;
+		entity.fromdir = entity.dir;
+
+		entity.x = tx;
+		entity.y = ty;
+		entity.altitude = tile.altitude + tile.height;
+		if (canTurn) {
+			if (entity.dir == d || entity.dir == GameState.Tile.FlipDirection(d)) {
+				// do nothing
+			} else {
+				// turnn only 90 degrees
+				entity.dir = d;
+			}
+		}
+
+		if (tile.ramp_direction != NONE) {
+			entity.altitude -= 1;
+		}
+
+		return true;
+	}
+
+	public function Transform(zustand:Int64,direction:Direction):Bool{
+		FromHash(zustand);
+		var moved = tryMove(p,direction,true,true);
+		return moved;
+	}
+	var dirs:Array<Direction> = [N,E,S,W];
+
+	public function ConstructSolution(hash:Int64,paths:Map<Int64,Int64>):Array<Direction>{
+		return [];
+	}
+
+	public function TrySolve():Array<Direction>{
+
+
+		//key = wo, value = wovon
+		var Besucht:Map<Int64,Int64> = new Map<Int64,Int64>();
+		var ZuVersuchen:Array<FromData> = [new FromData(ToHash(),Heuristic() ) ];
+
+		while (ZuVersuchen.length>0){
+			var zuVersuchen = ZuVersuchen.pop();
+			var hash = zuVersuchen.hash;
+			var wert = zuVersuchen.wert;
+			if (Besucht.exists(hash)){
+				continue;
+			}
+
+			for (i in 0...dirs.length){
+				var dir = dirs[i];
+				var moved = Transform(hash,dir);
+				if (moved){
+					var hash2 = ToHash();
+					Besucht[hash2] = hash;
+
+					var wert2 = Heuristic();
+					var fromData = new FromData(hash2,wert2);
+					
+					if (wert2==0){
+						return ConstructSolution(hash2,Besucht);
+					}
+					var inserted = false;
+					for (j in 0...ZuVersuchen.length){
+						var zuVersuchen2 = ZuVersuchen[j];
+						if (zuVersuchen2.wert > wert2){
+							ZuVersuchen.insert(j,fromData);
+							inserted = true;
+							break;
+						}
+					}
+					if (!inserted){
+						ZuVersuchen.push(fromData);
+					}
+					
+				}
+			}
+			var ToInsert:Array<FromData> = [];
+			if (Transform(hash,N)){
+				ToInsert.push(new FromData(ToHash(),Heuristic()));
+			}
+			ZuVersuchen.sort( function(a:FromData,b:FromData){ return (a.wert==b.wert)?0:(a.wert<b.wert?-1:1);} );			
+		}
+
+		return [];
+	}
+
+	public function ToHash():Int64{
+
+		trace("serializing:");
+		trace(p.x,p.y,p.height);
+		trace(c1.x,c1.y,c1.height);
+		trace(c2.x,c2.y,c2.height);
+
+		var low : haxe.Int32 = p.x * (1<<0)
+		+	p.y 		* (1<<5)
+		+	p.height 	* (1<<10)
+		+  c1.x 		* (1<<15)
+		+  c1.y 		* (1<<20)
+		+  c1.height 	* (1<<25);
+
+		var high : haxe.Int32 = c2.x * (1<<0)
+		+	c2.y 		* (1<<5)
+		+	c2.height 	* (1<<10)
+		+ 	0x1F 		* (1<<15)
+		+ 	0x1F 		* (1<<20)
+		+ 	0x1F 		* (1<<25);
+
+		return Int64.make(high,low);
+		//insert crate here?
+	}
+
+	public function FromHash(h:Int64){
+		var low = h.low;
+		var high = h.high;
+
+		p.x = 0x1F & (low >> 0);
+		p.y = 0x1F & (low >> 5);
+		p.height = 0x1F & (low >> 10);
+
+		c1.x = 0x1F & (low >> 15);
+		c1.y = 0x1F & (low >> 20);
+		c1.height = 0x1F & (low >> 25);
+
+		c2.x = 0x1F & (high >> 0);
+		c2.y = 0x1F & (high >> 5);
+		c2.height = 0x1F & (high >> 10);
+
+		trace("deserialized:");
+		trace(p.x,p.y,p.height);
+		trace(c1.x,c1.y,c1.height);
+		trace(c2.x,c2.y,c2.height);
+	}
 
     public function TileAt(i:Int,j:Int):Tile{
         if (i<0 || j<0 || i>=w || j>=h) {
