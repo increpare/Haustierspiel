@@ -199,6 +199,7 @@ class GameState {
 		return dist2*1024 + ddist2;		
 	}
 
+	//pure entity-level collision detection
 	public function canMove(entity:GameState.Entity, d:GameState.Direction):Bool {
 		var dx = 0;
 		var dy = 0;
@@ -292,7 +293,7 @@ class GameState {
 					// nothing to do
 				} else {
 					// otherwise, try push
-					if (tryMove(ent_under, d, false, false) == false) {
+					if (tryMove(ent_under, d, true, false) == false) {
 						return false;
 					}
 					// move upper in parallel, if any
