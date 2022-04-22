@@ -59,6 +59,7 @@ class Main extends SampleApp {
 	var player_obj:h3d.scene.Object;
 	var c1_obj:h3d.scene.Object;
 	var c2_obj:h3d.scene.Object;
+	var pillow_obj:h3d.scene.Object;
 	var cameracontroller:CameraController;
 
 	var config_dat:ConfigDat;
@@ -160,10 +161,13 @@ class Main extends SampleApp {
 		player_obj = null;
 		c1_obj = null;
 		c2_obj = null;
+		pillow_obj = null;
 
 		var model_player:h3d.scene.Object = prefabs["Player"].clone();
 		var model_c1:h3d.scene.Object = prefabs["C1"].clone();
 		var model_c2:h3d.scene.Object = prefabs["C2"].clone();
+		var model_pillow:h3d.scene.Object = prefabs["Pillow"].clone();
+
 		{
 			var ent:GameState.Entity = gamestate.p;
 			var obj = new h3d.scene.Object();
@@ -198,6 +202,21 @@ class Main extends SampleApp {
 			var ent:GameState.Entity = gamestate.c2;
 			var obj:h3d.scene.Object = model_c2;
 			c2_obj = obj;
+			if (ent != null) {
+				var i:Int = ent.x;
+				var j:Int = ent.y;
+				var z:Int = ent.altitude - 4;
+
+				obs_dynamic.addChild(obj);
+				obj.setPosition(i * 2, j * 2, z / 2);
+				obj.setRotation(0, 0, Rotation(ent.dir));
+			}
+		}
+		if (gamestate.pillow!=null)
+		{
+			var ent:GameState.Entity = gamestate.pillow;
+			var obj:h3d.scene.Object = model_pillow;
+			pillow_obj = obj;
 			if (ent != null) {
 				var i:Int = ent.x;
 				var j:Int = ent.y;
@@ -272,6 +291,9 @@ class Main extends SampleApp {
 		if (c2_obj != null) {
 			DoLerp(c2_obj, gamestate.c2);
 		}
+		if (pillow_obj != null) {
+			DoLerp(pillow_obj, gamestate.pillow);
+		}
 	}
 
 	function TryPlace(e:Entity,x:Int,y:Int){
@@ -296,6 +318,13 @@ class Main extends SampleApp {
 				RenderLevel(false);
 			}
 		}
+
+		var l_str = gamestate.ToString();
+		trace(l_str);
+		gamestate = GameState.FromString(l_str);
+		var l_str2 = gamestate.ToString();
+		trace(l_str2);
+		trace("IDEMPOTENCE:",l_str==l_str2);
 	}
 
 	function AlterAltitude(x:Int,y:Int,alt:Int){
@@ -480,6 +509,7 @@ class Main extends SampleApp {
 		RotateEntity(gamestate.p);
 		RotateEntity(gamestate.c1);
 		RotateEntity(gamestate.c2);
+		RotateEntity(gamestate.pillow);
 
 		RenderLevel(true);
 	}
@@ -497,6 +527,7 @@ class Main extends SampleApp {
 		FlipEntityH(gamestate.p);
 		FlipEntityH(gamestate.c1);
 		FlipEntityH(gamestate.c2);
+		FlipEntityH(gamestate.pillow);
 
 		RenderLevel(true);
 	}
@@ -514,6 +545,7 @@ class Main extends SampleApp {
 		FlipEntityV(gamestate.p);
 		FlipEntityV(gamestate.c1);
 		FlipEntityV(gamestate.c2);
+		FlipEntityV(gamestate.pillow);
 
 		RenderLevel(true);
 	}
@@ -611,11 +643,14 @@ class Main extends SampleApp {
 		gamestate.c1.y+=adjust_Y;
 		gamestate.c2.x+=adjust_X;
 		gamestate.c2.y+=adjust_Y;
+		gamestate.pillow.x+=adjust_X;
+		gamestate.pillow.y+=adjust_Y;
 
 		trace(gamestate.p.x,gamestate.p.y);
 		FitInBounds(gamestate.p);
 		FitInBounds(gamestate.c1);
 		FitInBounds(gamestate.c2);
+		FitInBounds(gamestate.pillow);
 
 		trace(gamestate.p.x,gamestate.p.y);
 		RenderLevel(true);
@@ -664,6 +699,16 @@ class Main extends SampleApp {
 		}
 		if (hxd.Key.isDown(hxd.Key.NUMBER_3)) {
 			TryPlace(gamestate.c2, editor_cursor_x, editor_cursor_y);
+		}
+		if (hxd.Key.isPressed(hxd.Key.NUMBER_4)) {
+			if (gamestate.pillow!=null && gamestate.pillow.x == editor_cursor_x && gamestate.pillow.y == editor_cursor_y) {
+				gamestate.pillow=null;
+			} else {
+				if (gamestate.pillow==null){
+					gamestate.pillow = new Entity(0,0,0,1,Direction.S);
+				}
+				TryPlace(gamestate.pillow, editor_cursor_x, editor_cursor_y);
+			}
 		}
 		if (hxd.Key.isPressed(hxd.Key.Q)){
 			AlterAltitude(editor_cursor_x, editor_cursor_y, -1);
@@ -755,6 +800,10 @@ class Main extends SampleApp {
 				gamestate.c2.fromy = gamestate.c2.y;
 				gamestate.c2.fromaltitude = gamestate.c2.altitude;
 				gamestate.c2.fromdir = gamestate.c2.dir;
+				gamestate.pillow.fromx = gamestate.pillow.x;
+				gamestate.pillow.fromy = gamestate.pillow.y;
+				gamestate.pillow.fromaltitude = gamestate.pillow.altitude;
+				gamestate.pillow.fromdir = gamestate.pillow.dir;
 			}
 			return;
 		}

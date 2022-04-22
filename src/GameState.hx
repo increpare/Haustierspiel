@@ -1,5 +1,7 @@
 package;
 
+import haxe.Unserializer;
+import haxe.Serializer;
 import js.lib.Set;
 import haxe.Int64;
 import StringTools;
@@ -118,19 +120,69 @@ class FromData {
 }
 
 class GameState {
-	public var w:Int;
-	public var h:Int;
 	public var Tiles:Array<Array<Tile>>;
 	public var p:Entity;
 	public var c1:Entity;
 	public var c2:Entity;
+	public var pillow:Entity;
 
+	//accessors for w/h
+	public var w(default, null):Int;
+	public var h(default, null):Int;
+
+	public function get_h():Int{
+		return Tiles.length;
+	}
+	public function get_w():Int{
+		return Tiles[0].length;
+	}
+
+	public function ToString():String{
+		var serializer:Serializer = new Serializer();
+		serializer.serialize(this);
+		return serializer.toString();
+	}
+	public static function FromString(s:String):GameState{
+		var unserializer:Unserializer = new Unserializer(s);
+		return unserializer.unserialize();
+	}
 	//14-bits per entity = 42 for a full state
 	//x:0-32 (5)
 	//y:0-32 (5)
 	//z:0-32 (5)
 	
 	public function Heuristic():Float{
+		//minimum of taxicab distance between possibel target points around c1
+		var targetpoints = [[c1.x+2,c1.y], [c1.x-2,c1.y], [c1.x,c1.y+2], [c1.x,c1.y-2]];
+		var curdist:Float=1000000;
+		var dh = Math.abs(c1.height-c2.height);
+		for(i in 0...targetpoints.length){
+			var targetpoint = targetpoints[i];
+			var dist=Math.abs(targetpoint[0]-c2.x)+Math.abs(targetpoint[1]-c2.y)-2;
+			if (dist<0){
+				dist*=-2;
+			}
+			dist+=dh;
+			if(dist<curdist){
+				curdist=dist;
+			}
+		}
+		curdist*=5;
+
+		//want height of floor between players to be 1 (penalize otherwise)
+		var mpx:Int = Math.floor((c1.x+c2.x)/2);
+		var mpy:Int = Math.floor((c1.y+c2.y)/2);
+		var tile = TileAt(mpx,mpy);
+		if (tile==null){
+			curdist+=1;
+		}
+		else {
+			var dh_middle = Math.abs(tile.heightCoord()-c1.height-1);
+			curdist += dh_middle;
+		}
+
+		//want player to be close to midpoint
+		
 		//distance between c1 and c2
 		var dx = c1.x-c2.x;
 		var dy = c1.y-c2.y;
@@ -355,20 +407,29 @@ class GameState {
 		trace(p.x,p.y,p.height);
 		trace(c1.x,c1.y,c1.height);
 		trace(c2.x,c2.y,c2.height);
+		if (pillow!=null){
+			trace(pillow.x,pillow.y,pillow.height);
+		}
 
-		var low : haxe.Int32 = p.x * (1<<0)
-		+	p.y 		* (1<<5)
-		+	p.height 	* (1<<10)
-		+  c1.x 		* (1<<15)
-		+  c1.y 		* (1<<20)
-		+  c1.height 	* (1<<25);
+		var low : haxe.Int32 = 
+			p.x * (1<<0)
+		+	p.y 			* (1<<5)
+		+	p.height 		* (1<<10)
+		+  c1.x 			* (1<<15)
+		+  c1.y 			* (1<<20)
+		+  c1.height 		* (1<<25);
 
-		var high : haxe.Int32 = c2.x * (1<<0)
-		+	c2.y 		* (1<<5)
-		+	c2.height 	* (1<<10)
-		+ 	0x1F 		* (1<<15)
-		+ 	0x1F 		* (1<<20)
-		+ 	0x1F 		* (1<<25);
+		var high : haxe.Int32 = 
+			c2.x * (1<<0)
+		+	c2.y 			* (1<<5)
+		+	c2.height 		* (1<<10);
+		
+		if(pillow!=null){
+			high+=
+				pillow.x 		* (1<<15)
+			+ 	pillow.y 		* (1<<20)
+			+ 	pillow.height	* (1<<25);
+		}
 
 		return Int64.make(high,low);
 		//insert crate here?
@@ -389,6 +450,12 @@ class GameState {
 		c2.x = 0x1F & (high >> 0);
 		c2.y = 0x1F & (high >> 5);
 		c2.height = 0x1F & (high >> 10);
+
+		if (pillow!=null){
+			pillow.x = 0x1F & (high >> 15);
+			pillow.y = 0x1F & (high >> 20);
+			pillow.height = 0x1F & (high >> 25);
+		}
 
 		trace("deserialized:");
 		trace(p.x,p.y,p.height);
@@ -415,6 +482,9 @@ class GameState {
 		if (i == c2.x && j == c2.y) {
 			result.push(c2);
 		}
+		if (pillow!=null && i==pillow.x && j==pillow.y){
+			result.push(pillow);
+		}
         if (result.length>1){
             if (result[0].altitude>result[1].altitude){
                 var tmp = result[0];
@@ -435,6 +505,9 @@ class GameState {
 		}
 		if (i == c2.x && j == c2.y && altitude == c2.altitude) {
 			return c2;
+		}
+		if (pillow!=null && i==pillow.x && j==pillow.y && altitude==pillow.altitude){
+			return pillow;
 		}
 		return null;
 	}
@@ -458,14 +531,12 @@ class GameState {
 	public static function LoadFromString(s:String):GameState {
 		var result:GameState = new GameState();
 		var lines = s.split("\n").map(StringTools.trim);
-		result.h = lines.length;
         
 		result.Tiles = new Array<Array<Tile>>();
 		for (i in 0...lines.length) {
 			var line = lines[i];
 			var row:Array<Tile> = [];
 			for (j in 0...line.length) {
-                result.w = line.length;
 				var c = line.charAt(j);
 				switch (c) {
                     case ".":                        
@@ -524,51 +595,67 @@ class GameState {
 
 					case "p":
 						row.push(new Tile(j, i, 4, NONE));
-						result.p = new Entity(j, i, 4, 2, N);
+						result.p = new Entity(j, i, 4, 2, S);
 					case "P":
 						row.push(new Tile(j, i, 6, NONE));
-						result.p = new Entity(j, i, 6, 2, N);
+						result.p = new Entity(j, i, 6, 2, S);
 					case "q":
 						row.push(new Tile(j, i, 8, NONE));
-						result.p = new Entity(j, i, 8, 2, N);
+						result.p = new Entity(j, i, 8, 2, S);
 					case "Q":
 						row.push(new Tile(j, i, 10, NONE));
-						result.p = new Entity(j, i, 10, 2, N);
+						result.p = new Entity(j, i, 10, 2, S);
 					case "r":
 						row.push(new Tile(j, i, 12, NONE));
-						result.p = new Entity(j, i, 12, 2, N);
+						result.p = new Entity(j, i, 12, 2, S);
 
 					case "e":
 						row.push(new Tile(j, i, 4, NONE));
-						result.c1 = new Entity(j, i, 4, 4, N);
+						result.c1 = new Entity(j, i, 4, 4, S);
 					case "E":
                         row.push(new Tile(j, i, 6, NONE));
-						result.c1 = new Entity(j, i, 6, 4, N);
+						result.c1 = new Entity(j, i, 6, 4, S);
 					case "f":
                         row.push(new Tile(j, i, 8, NONE));
-						result.c1 = new Entity(j, i, 8, 4, N);
+						result.c1 = new Entity(j, i, 8, 4, S);
 					case "F":
                         row.push(new Tile(j, i, 10, NONE));
-						result.c1 = new Entity(j, i, 10, 4, N);
+						result.c1 = new Entity(j, i, 10, 4, S);
 					case "g":
                         row.push(new Tile(j, i, 12, NONE));
-						result.c1 = new Entity(j, i, 12, 4, N);
+						result.c1 = new Entity(j, i, 12, 4, S);
 
 					case "n":
                         row.push(new Tile(j, i, 4, NONE));
-						result.c2 = new Entity(j, i, 4, 4, N);
+						result.c2 = new Entity(j, i, 4, 4, S);
 					case "N":
                         row.push(new Tile(j, i, 6, NONE));
-						result.c2 = new Entity(j, i, 6, 4, N);
+						result.c2 = new Entity(j, i, 6, 4, S);
 					case "m":
                         row.push(new Tile(j, i, 8, NONE));
-						result.c2 = new Entity(j, i, 8, 4, N);
+						result.c2 = new Entity(j, i, 8, 4, S);
 					case "M":
                         row.push(new Tile(j, i, 10, NONE));
-						result.c2 = new Entity(j, i, 10, 4, N);
+						result.c2 = new Entity(j, i, 10, 4, S);
 					case "o":
                         row.push(new Tile(j, i, 12, NONE));
-						result.c2 = new Entity(j, i, 12, 4, N);
+						result.c2 = new Entity(j, i, 12, 4, S);
+
+					case "b":
+						row.push(new Tile(j, i, 4, NONE));
+						result.pillow = new Entity(j, i, 4, 4, S);
+					case "B":
+						row.push(new Tile(j, i, 6, NONE));
+						result.pillow = new Entity(j, i, 6, 4, S);
+					case "c":
+						row.push(new Tile(j, i, 8, NONE));
+						result.pillow = new Entity(j, i, 8, 4, S);
+					case "C":
+						row.push(new Tile(j, i, 10, NONE));
+						result.pillow = new Entity(j, i, 10, 4, S);
+					case "x":
+						row.push(new Tile(j, i, 12, NONE));
+						result.pillow = new Entity(j, i, 12, 4, S);
 				}
 			}
 			if (row.length>0){
