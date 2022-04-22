@@ -1,3 +1,7 @@
+import GameState.RampDirection;
+import GameState.Direction;
+import GameState.Entity;
+import GameState.Tile;
 import h3d.prim.Cube;
 import h3d.mat.BaseMaterial;
 import h3d.mat.Material;
@@ -45,7 +49,7 @@ class Main extends SampleApp {
 	var gamestate:GameState;
 
 	var obs_static:h3d.scene.Object;
-	var obs_static_grid:Array<Array<h3d.scene.Object>>;
+	var obs_static_grid:Array<Array<h3d.scene.Mesh>>;
 
 	var obs_dynamic:h3d.scene.Object;
 	
@@ -63,7 +67,7 @@ class Main extends SampleApp {
 
 
 	var editor_toolbar_interacts : Array<h3d.scene.Interactive>;
-	var editor_basegrid_interacts : Array<h3d.scene.Interactive>;
+	var editor_basegrid_interacts : Array<h3d.scene.Interactive> =[];
 
 	public static function Rotation(rotInt:Int):Float {
 		return (2 + rotInt) * Math.PI / 2.0;
@@ -71,13 +75,21 @@ class Main extends SampleApp {
 
 	function RenderLevel(rebuildstatic:Bool) {
 		if (rebuildstatic) {
+			//remove each static interact
+			trace("rebuilding static");
+			trace(editor_basegrid_interacts.length);
+			for (i in 0...editor_basegrid_interacts.length){
+				var interact = editor_basegrid_interacts[i];
+				interact.remove();	
+			}
 			editor_basegrid_interacts=[];
 			obs_static_grid=[];
 
 			obs_static.removeChildren();
+			editor_basegrid.removeChildren();
 			for (j in 0...gamestate.Tiles.length) {
 				var tileRow = gamestate.Tiles[j];
-				var obs_static_grid_ROW:Array<h3d.scene.Object> = [];
+				var obs_static_grid_ROW:Array<h3d.scene.Mesh> = [];
 
 				for (i in 0...tileRow.length) {
 					//create little cube
@@ -119,6 +131,7 @@ class Main extends SampleApp {
 								var dir:GameState.Direction = S;
 								// trace("height " + Std.string(tile.height));
 								// trace(Std.string(floor) + "_Ramp");
+								trace(Std.string(floor) + "_Ramp");
 								obj = cast(prefabs[Std.string(floor) + "_Ramp"].clone(),Mesh);
 								obs_static.addChild(obj);
 								obj.setPosition(i * 2, j * 2, 0);
@@ -129,7 +142,9 @@ class Main extends SampleApp {
 					
 					var interact : h3d.scene.Interactive = new h3d.scene.Interactive(obj.getCollider(), s3d);
 					editor_basegrid_interacts.push(interact);
-					interact.remove();
+					if (editormode==false){
+						interact.remove();
+					}
 					Editor_Basegrid_Interact(interact, obj, (function(int_i,int_j) {
 						return function() {
 							onBasegridButtonClick(int_i,int_j);
@@ -385,6 +400,353 @@ class Main extends SampleApp {
 		}
 	}
 
+	function TryPlace(e:Entity,x:Int,y:Int){
+		if (
+			(x==gamestate.p.x && y==gamestate.p.y) ||
+			(x==gamestate.c1.x && y==gamestate.c1.y) ||
+			(x==gamestate.c2.x && y==gamestate.c2.y))
+		{
+			return;
+		}
+
+		if (x!=-1 && y!=-1){
+			//has to be a tile
+			var floor:Tile = gamestate.Tiles[y][x];
+			if (floor!=null){
+				e.x = x;
+				e.y = y;
+				e.altitude = floor.heightCoord();
+				e.fromx = e.x;
+				e.fromy = e.y;
+				e.fromaltitude = e.altitude;
+				RenderLevel(false);
+			}
+		}
+	}
+
+	function AlterAltitude(x:Int,y:Int,alt:Int){
+		var tile = gamestate.Tiles[y][x];
+		if (alt==1){
+			//if tile is null, create a new one
+			if (tile==null){
+				var t = new Tile(x,y,4,GameState.RampDirection.NONE);
+				gamestate.Tiles[y][x]=t;				
+			} else if (tile.isWall()){
+				return;
+			} else {
+				tile.height+=2;
+				//if too tall, turn to wall
+				if (tile.height>12){
+					tile.height=20;
+					tile.ramp_direction = GameState.RampDirection.NONE;
+				}
+			}
+		} else {
+			if (tile==null){
+				//do nothing
+			} else if (tile.isWall()){
+				tile.height=12;
+			} else if (tile.height==4){
+				gamestate.Tiles[y][x]=null;
+			} else if (tile.ramp_direction!=NONE && tile.height==6) {
+				tile.ramp_direction = NONE;
+				tile.height-=2;
+			}
+			else {
+				tile.height-=2;
+			}
+		}
+
+		//if entity on tile, displace it upwards/downwards
+		var ents = gamestate.CharactersAt(x,y);
+		if (ents.length>0){
+			var ent = ents[0];
+			ent.altitude = tile.heightCoord();
+		}
+
+		RenderLevel(true);
+	}
+
+	function Rampify(x:Int,y:Int,d:RampDirection){
+		var tile = gamestate.TileAt(x,y);
+		if (tile==null){
+			tile = new Tile(x,y,4,d);
+			gamestate.Tiles[y][x]=tile;
+		}
+		if (tile.isWall()){
+			return;
+		}
+		if (tile.ramp_direction !=d ){
+			if (d!=NONE){
+				if (tile.ramp_direction == NONE ){
+					if (tile.height<12){
+						tile.ramp_direction = d;
+						tile.height+=2;
+					}
+				} else {
+					tile.ramp_direction = d;			
+				}
+			} else {			
+				if (tile.ramp_direction == NONE ){
+					tile.ramp_direction = d;
+				} else {
+					tile.ramp_direction = d;	
+					tile.height-=2;		
+				}
+			}
+			tile.ramp_direction = d;
+		}
+
+		//if entity on tile, displace it upwards/downwards
+		var ents = gamestate.CharactersAt(x,y);
+		if (ents.length>0){
+			var ent = ents[0];
+			ent.altitude = tile.heightCoord();
+		}
+		
+		RenderLevel(true);
+	}
+
+	function FitInBounds(e:Entity){
+		if (e.x<0){
+			e.x++;
+		}
+		if (e.y<0){
+			e.y++;
+		}
+		
+		if (e.x>=gamestate.Tiles[0].length){
+			trace("reducingX");
+			e.x--;
+		}
+		if (e.y>=gamestate.Tiles.length){
+			trace("reducingY");
+			e.y--;
+		}
+		e.fromx = e.x;
+		e.fromy = e.y;
+	}
+
+	function RotateEntity(e:Entity){
+		var oldX=e.x;
+		var oldY=e.y;
+		e.x = oldY;
+		e.y = gamestate.Tiles.length-oldX-1;
+		e.fromx=e.x;
+		e.fromy=e.y;
+	}
+
+	function RotateTile(e:Tile){
+		if (e==null){
+			return;
+		}
+		var oldX=e.x;
+		var oldY=e.y;
+		e.x = oldY;
+		if (e.ramp_direction!=NONE){
+			e.ramp_direction =Tile.RotateCounterClockwise(e.ramp_direction);
+		}
+		e.y = gamestate.Tiles.length-oldX-1;
+	}
+
+	
+	function FlipEntityH(e:Entity){
+		if (e==null){
+			return;
+		}	
+		e.x = gamestate.Tiles[0].length-1-e.x;
+		e.fromx=e.x;
+	}
+
+	function FlipEntityV(e:Entity){
+		e.y = gamestate.Tiles.length-1-e.y;
+		e.fromy=e.y;
+	}
+
+	
+	function FlipTileH(e:Tile){
+		if (e==null){
+			return;
+		}
+		e.x = gamestate.Tiles[0].length-1-e.x;
+		if (e.ramp_direction == W || e.ramp_direction == E){
+			e.ramp_direction = Tile.FlipDirection(e.ramp_direction);
+		}
+	}
+
+	function FlipTileV(e:Tile){
+		if (e==null){
+			return;
+		}
+		e.y = gamestate.Tiles.length-1-e.y;
+		if (e.ramp_direction == N || e.ramp_direction == S){
+			e.ramp_direction = Tile.FlipDirection(e.ramp_direction);
+		}
+	}
+
+	function RotateLevel(){
+		trace("rotating level");
+		//transpose gamestate.Tiles
+		var newTiles = new Array();
+		var old_W = gamestate.Tiles[0].length;
+		var old_H = gamestate.Tiles.length;
+		var new_W=old_H;
+		var new_H = old_W;
+		for (j in 0...new_H){
+			var row_new = new Array();
+			for (i in 0...new_W){
+				var tile = gamestate.Tiles[i][old_W-1-j];
+				RotateTile(tile);
+				row_new.push(tile);
+			}
+			newTiles.push(row_new);
+		}
+		gamestate.Tiles=newTiles;
+
+		RotateEntity(gamestate.p);
+		RotateEntity(gamestate.c1);
+		RotateEntity(gamestate.c2);
+
+		RenderLevel(true);
+	}
+
+	function FlipLevelH(){
+		trace("h-flipping level");
+		//transpose gamestate.Tiles
+		for (j in 0...gamestate.Tiles.length){
+			var row = gamestate.Tiles[j];
+			row.reverse();
+			for (i in 0...row.length){
+				FlipTileH(row[i]);
+			}
+		}
+		FlipEntityH(gamestate.p);
+		FlipEntityH(gamestate.c1);
+		FlipEntityH(gamestate.c2);
+
+		RenderLevel(true);
+	}
+
+	function FlipLevelV(){
+		trace("v-flipping level");
+		gamestate.Tiles.reverse();
+		for (j in 0...gamestate.Tiles.length){
+			var row = gamestate.Tiles[j];
+			for (i in 0...row.length){
+				FlipTileV(row[i]);
+			}
+		}
+		
+		FlipEntityV(gamestate.p);
+		FlipEntityV(gamestate.c1);
+		FlipEntityV(gamestate.c2);
+
+		RenderLevel(true);
+	}
+	
+	function ResizeLevel(dN:Int,dS:Int,dW:Int,dE:Int){
+		
+		
+		//removing entities if dN/dW positive, or dS/dE negative
+
+		//step 1, resize static arrays
+		//North/South resize
+		
+		//if expanding
+		if (dN<0 || dS>0){			
+			var newRow:Array<Tile> = new Array<Tile>();
+			for (i in 0...gamestate.Tiles[0].length){
+				newRow.push(null);
+			}
+			if (dN<0){
+				gamestate.Tiles.insert(0,newRow);
+			} else {
+				gamestate.Tiles.push(newRow);
+			}
+		} 
+		if (dW<0 || dE>0) {
+			for (j in 0...gamestate.Tiles.length){
+				var row = gamestate.Tiles[j];
+				if (dW<0){
+					row.insert(0,null);
+				} else {
+					row.push(null);
+				}
+			}
+		}
+
+		//if contracting
+		if (dN>0){
+			if (gamestate.Tiles.length>1){
+				gamestate.Tiles.splice(0,1);
+			}
+		}
+		if (dS<0){
+			if (gamestate.Tiles.length>1){
+				gamestate.Tiles.splice(gamestate.Tiles.length-1,1);
+			}
+		}
+		if (dW>0){
+			if (gamestate.Tiles[0].length>1){
+				for (j in 0...gamestate.Tiles.length){
+					var row = gamestate.Tiles[j];
+					row.splice(0,1);
+				}
+			}
+		}
+		if (dE<0){
+			if (gamestate.Tiles[0].length>1){
+				for (j in 0...gamestate.Tiles.length){
+					var row = gamestate.Tiles[j];
+					row.splice(row.length-1,1);
+				}
+			}
+		}
+
+		//only need to adjust coordinates if dN or dW non-negative
+		var adjust_Y=0;
+		var adjust_X=0;
+		if (dN<0){
+			adjust_Y=1;
+		} 
+		if (dN>0){
+			adjust_Y=-1;
+		}
+		if (dW<0){
+			adjust_X=1;
+		}
+		if (dW>0){
+			adjust_X=-1;
+		}
+		for (j in 0...gamestate.Tiles.length){
+			var row = gamestate.Tiles[j];
+			for (i in 0...row.length){
+				var tile = row[i];
+				if (tile!=null){
+					tile.x+=adjust_X;
+					tile.y+=adjust_Y;
+				}
+			}
+		}
+
+		trace("adjust");
+		trace(gamestate.p.x,gamestate.p.y);
+		gamestate.p.x+=adjust_X;
+		gamestate.p.y+=adjust_Y;
+		gamestate.c1.x+=adjust_X;
+		gamestate.c1.y+=adjust_Y;
+		gamestate.c2.x+=adjust_X;
+		gamestate.c2.y+=adjust_Y;
+
+		trace(gamestate.p.x,gamestate.p.y);
+		FitInBounds(gamestate.p);
+		FitInBounds(gamestate.c1);
+		FitInBounds(gamestate.c2);
+
+		trace(gamestate.p.x,gamestate.p.y);
+		RenderLevel(true);
+	}
+
 	function EditorUpdate() {
 		if (!editormode) {
 			editor_gui.visible = false;
@@ -392,27 +754,23 @@ class Main extends SampleApp {
 
 			for (i in 0...editor_toolbar_interacts.length){
 				var ei = editor_toolbar_interacts[i];
-				if (ei.parent!=null){
-					ei.remove();
-				}
+				ei.remove();
 			}
 			
 			for (i in 0...editor_basegrid_interacts.length){
 				var ei = editor_basegrid_interacts[i];
-				if (ei.parent!=null){
-					ei.remove();
-				}
+				ei.remove();				
 			}
 			return;
 		}
 
-		editor_gui.visible = true;
-		for (i in 0...editor_toolbar_interacts.length){
-			var ei = editor_toolbar_interacts[i];
-			if (ei.parent==null){
-				s3d.addChild(ei);
-			}
-		}
+		// editor_gui.visible = true;
+		// for (i in 0...editor_toolbar_interacts.length){
+		// 	var ei = editor_toolbar_interacts[i];
+		// 	if (ei.parent==null){
+		// 		s3d.addChild(ei);
+		// 	}
+		// }
 
 		for (i in 0...editor_basegrid_interacts.length){
 			var ei = editor_basegrid_interacts[i];
@@ -424,33 +782,66 @@ class Main extends SampleApp {
 
 		editor_basegrid.visible = true;
 
-		if (hxd.Key.isDown(hxd.Key.NUMBER_1)) {
-			editor_sel = 0;
-		} else if (hxd.Key.isDown(hxd.Key.NUMBER_2)) {
-			editor_sel = 1;
-		} else if (hxd.Key.isDown(hxd.Key.NUMBER_3)) {
-			editor_sel = 2;
-		} else if (hxd.Key.isDown(hxd.Key.NUMBER_4)) {
-			editor_sel = 3;
-		} else if (hxd.Key.isDown(hxd.Key.NUMBER_5)) {
-			editor_sel = 4;
-		} else if (hxd.Key.isDown(hxd.Key.NUMBER_6)) {
-			editor_sel = 5;
-		} else if (hxd.Key.isDown(hxd.Key.NUMBER_7)) {
-			editor_sel = 6;
-		} else if (hxd.Key.isDown(hxd.Key.NUMBER_8)) {
-			editor_sel = 7;
-		} else if (hxd.Key.isDown(hxd.Key.NUMBER_9)) {
-			editor_sel = 8;
-		} else if (hxd.Key.isDown(hxd.Key.NUMBER_0)) {
-			editor_sel = 9;
-		} else if (hxd.Key.isDown(hxd.Key.I)) {
-			editor_sel = 10;
-		} else if (hxd.Key.isDown(hxd.Key.O)) {
-			editor_sel = 11;
-		} else if (hxd.Key.isDown(hxd.Key.P)) {
-			editor_sel = 12;
+		if (hxd.Key.isPressed(hxd.Key.NUMBER_1)) {
+			TryPlace(gamestate.p, editor_cursor_x, editor_cursor_y);
 		}
+		if (hxd.Key.isDown(hxd.Key.NUMBER_2)) {
+			TryPlace(gamestate.c1, editor_cursor_x, editor_cursor_y);
+		}
+		if (hxd.Key.isDown(hxd.Key.NUMBER_3)) {
+			TryPlace(gamestate.c2, editor_cursor_x, editor_cursor_y);
+		}
+		if (hxd.Key.isPressed(hxd.Key.Q)){
+			AlterAltitude(editor_cursor_x, editor_cursor_y, -1);
+		}
+		if (hxd.Key.isPressed(hxd.Key.E)){
+			AlterAltitude(editor_cursor_x, editor_cursor_y, 1);
+		}
+		if (hxd.Key.isDown(hxd.Key.W)){
+			Rampify(editor_cursor_x, editor_cursor_y, RampDirection.N);
+		}
+		if (hxd.Key.isDown(hxd.Key.S)){
+			Rampify(editor_cursor_x, editor_cursor_y, RampDirection.S);
+		}
+		if (hxd.Key.isDown(hxd.Key.A)){
+			Rampify(editor_cursor_x, editor_cursor_y, RampDirection.W);
+		}
+		if (hxd.Key.isDown(hxd.Key.D)){
+			Rampify(editor_cursor_x, editor_cursor_y, RampDirection.E);
+		}
+		if (hxd.Key.isDown(hxd.Key.F)){
+			Rampify(editor_cursor_x, editor_cursor_y, RampDirection.NONE);
+		}
+		var shiftDown:Bool = hxd.Key.isDown(hxd.Key.SHIFT);
+		var delta = shiftDown?-1:1;
+		if (hxd.Key.isPressed(hxd.Key.I)){
+			ResizeLevel(-delta,0,0,0);
+		}
+		if (hxd.Key.isPressed(hxd.Key.K)){
+			ResizeLevel(0,delta,0,0);
+		}
+		if (hxd.Key.isPressed(hxd.Key.J)){
+			ResizeLevel(0,0,-delta,0);
+		}
+		if (hxd.Key.isPressed(hxd.Key.L)){
+			ResizeLevel(0,0,0,delta);
+		}
+		if (hxd.Key.isPressed(hxd.Key.R)){
+			if (shiftDown){
+				RotateLevel();
+				RotateLevel();
+				RotateLevel();
+			} else {
+				RotateLevel();
+			}
+		}
+		if (hxd.Key.isPressed(hxd.Key.H)){
+			FlipLevelH();
+		}
+		if (hxd.Key.isPressed(hxd.Key.V)){
+			FlipLevelV();
+		}
+		
 
 		var buttonlist = editor_gui.getChildAt(0);
 		for (i in 0...editor_buttons.length) {
@@ -505,7 +896,21 @@ class Main extends SampleApp {
 
 		if (hxd.Key.isPressed(hxd.Key.TAB)) {
 			editormode = !editormode;
-			trace(editormode);
+			if (editormode==false){
+				//remove all highlights
+				for (j in 0...obs_static_grid.length){
+					var row : Array<Mesh> = obs_static_grid[j];
+					for (i in 0...row.length){
+						var o : Mesh = row[i];
+						if (o!=null){
+							o.setScale(1);
+							if (o!=null){
+								o.material.blendMode = h3d.mat.BlendMode.None;
+							}
+						}
+					}
+				}
+			}
 		}
 		AnimatePositions();
 		EditorUpdate();
@@ -514,6 +919,8 @@ class Main extends SampleApp {
 	static var editor_buttons:Array<String> = [
 		"Player", "C1", "C2", "0_Floor", "0_Ramp", "1_Floor", "1_Ramp", "2_Floor", "2_Ramp", "3_Floor", "3_Ramp", "4_Floor", "Wall"
 	];
+	var editor_cursor_x:Int=-1;
+	var editor_cursor_y:Int=-1;
 
 	function Editor_Basegrid_Interact(i:h3d.scene.Interactive, m:h3d.scene.Mesh, onclick:Void->Void, x:Int,y:Int){
 		var beacon = null;
@@ -530,6 +937,8 @@ class Main extends SampleApp {
 				if (o!=null){
 					o.material.blendMode = h3d.mat.BlendMode.Add;
 				}
+				editor_cursor_x=x;
+				editor_cursor_y=y;
 
 			// };
 			//   var s = new h3d.prim.Sphere(1, 32, 32);
@@ -555,7 +964,10 @@ class Main extends SampleApp {
 			if (o!=null){
 				o.material.blendMode = h3d.mat.BlendMode.None;
 			}
-
+			if ( editor_cursor_x == x && editor_cursor_y == y ) {
+				editor_cursor_x = -1;
+				editor_cursor_y = -1;
+			}
 		};
 	}
 
@@ -750,6 +1162,8 @@ class Main extends SampleApp {
 		}
 
 		gamestate = GameState.LoadFromString(levelDat);
+
+		
 
 		RenderLevel(true);
 

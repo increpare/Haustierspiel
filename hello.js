@@ -103,12 +103,26 @@ Tile.FlipDirection = function(d) {
 		return -1;
 	}
 };
+Tile.RotateCounterClockwise = function(d) {
+	switch(d) {
+	case 0:
+		return 3;
+	case 1:
+		return 0;
+	case 2:
+		return 1;
+	case 3:
+		return 2;
+	default:
+		return -1;
+	}
+};
 Tile.prototype = {
 	isWall: function() {
 		return this.height == 20;
 	}
 	,heightCoord: function() {
-		return this.height - this.altitude + (this.ramp_direction == -1 ? 0 : -1);
+		return this.height + this.altitude + (this.ramp_direction == -1 ? 0 : -1);
 	}
 	,__class__: Tile
 };
@@ -298,13 +312,14 @@ GameState.LoadFromString = function(s) {
 				break;
 			}
 		}
-		result.Tiles.push(row);
+		if(row.length > 0) {
+			result.Tiles.push(row);
+		}
 	}
 	return result;
 };
 GameState.prototype = {
 	TileAt: function(i,j) {
-		haxe_Log.trace(i,{ fileName : "src/GameState.hx", lineNumber : 108, className : "GameState", methodName : "TileAt", customParams : [j,this.w,this.h]});
 		if(i < 0 || j < 0 || i >= this.w || j >= this.h) {
 			return null;
 		}
@@ -737,7 +752,10 @@ SampleApp.prototype = $extend(hxd_App.prototype,{
 	,__class__: SampleApp
 });
 var Main = function() {
+	this.editor_cursor_y = -1;
+	this.editor_cursor_x = -1;
 	this.moveTimer = -1;
+	this.editor_basegrid_interacts = [];
 	this.editor_sel = 0;
 	this.editormode = false;
 	this.levelDat = "\r\n  ..###.###.\r\n  ###44444##\r\n  ###4I4JI##\r\n  ###4ii23##\r\n  1W11DjA111\r\n  DA111W11N1\r\n  1SP1111a00\r\n  .0w0e0000s\r\n  .0000d1a01\r\n  ";
@@ -762,11 +780,11 @@ Main.loadExternalResources = function() {
 		cur[0].onLoaded = (function(cur,p) {
 			return function(bytes) {
 				try {
-					haxe_Log.trace("loaded " + p[0] + " of size " + bytes.length,{ fileName : "src/Main.hx", lineNumber : 793, className : "Main", methodName : "loadExternalResources"});
+					haxe_Log.trace("loaded " + p[0] + " of size " + bytes.length,{ fileName : "src/Main.hx", lineNumber : 1207, className : "Main", methodName : "loadExternalResources"});
 					Main.VirtualResources.h[p[0]] = bytes;
 					loadedCount += 1;
 					if(loadedCount == toLoad.length) {
-						haxe_Log.trace("all resources loaded",{ fileName : "src/Main.hx", lineNumber : 797, className : "Main", methodName : "loadExternalResources"});
+						haxe_Log.trace("all resources loaded",{ fileName : "src/Main.hx", lineNumber : 1211, className : "Main", methodName : "loadExternalResources"});
 						new Main();
 					}
 				} catch( _g ) {
@@ -777,12 +795,12 @@ Main.loadExternalResources = function() {
 		})(cur,p);
 		cur[0].onProgress = (function() {
 			return function(cur,max) {
-				haxe_Log.trace(cur / max,{ fileName : "src/Main.hx", lineNumber : 807, className : "Main", methodName : "loadExternalResources"});
+				haxe_Log.trace(cur / max,{ fileName : "src/Main.hx", lineNumber : 1221, className : "Main", methodName : "loadExternalResources"});
 			};
 		})();
 		cur[0].onError = (function() {
 			return function(e) {
-				haxe_Log.trace(e,{ fileName : "src/Main.hx", lineNumber : 810, className : "Main", methodName : "loadExternalResources"});
+				haxe_Log.trace(e,{ fileName : "src/Main.hx", lineNumber : 1224, className : "Main", methodName : "loadExternalResources"});
 			};
 		})();
 		cur[0].load();
@@ -797,9 +815,21 @@ Main.prototype = $extend(SampleApp.prototype,{
 	RenderLevel: function(rebuildstatic) {
 		var _gthis = this;
 		if(rebuildstatic) {
+			haxe_Log.trace("rebuilding static",{ fileName : "src/Main.hx", lineNumber : 79, className : "Main", methodName : "RenderLevel"});
+			haxe_Log.trace(this.editor_basegrid_interacts.length,{ fileName : "src/Main.hx", lineNumber : 80, className : "Main", methodName : "RenderLevel"});
+			var _g = 0;
+			var _g1 = this.editor_basegrid_interacts.length;
+			while(_g < _g1) {
+				var i = _g++;
+				var interact = this.editor_basegrid_interacts[i];
+				if(interact != null && interact.parent != null) {
+					interact.parent.removeChild(interact);
+				}
+			}
 			this.editor_basegrid_interacts = [];
 			this.obs_static_grid = [];
 			this.obs_static.removeChildren();
+			this.editor_basegrid.removeChildren();
 			var _g = 0;
 			var _g1 = this.gamestate.Tiles.length;
 			while(_g < _g1) {
@@ -935,6 +965,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 					} else {
 						var floor2 = (tile.height - 6) / 2 | 0;
 						var dir2 = 2;
+						haxe_Log.trace((floor2 == null ? "null" : "" + floor2) + "_Ramp",{ fileName : "src/Main.hx", lineNumber : 134, className : "Main", methodName : "RenderLevel"});
 						obj = js_Boot.__cast(this.prefabs.h[(floor2 == null ? "null" : "" + floor2) + "_Ramp"].clone() , h3d_scene_Mesh);
 						this.obs_static.addChild(obj);
 						var x3 = i * 2;
@@ -975,8 +1006,10 @@ Main.prototype = $extend(SampleApp.prototype,{
 					}
 					var interact = new h3d_scene_Interactive(obj.getCollider(),this.s3d);
 					this.editor_basegrid_interacts.push(interact);
-					if(interact != null && interact.parent != null) {
-						interact.parent.removeChild(interact);
+					if(this.editormode == false) {
+						if(interact != null && interact.parent != null) {
+							interact.parent.removeChild(interact);
+						}
 					}
 					this.Editor_Basegrid_Interact(interact,obj,(function(int_j,int_i) {
 						return function() {
@@ -1396,6 +1429,331 @@ Main.prototype = $extend(SampleApp.prototype,{
 			this.DoLerp(this.c2_obj,this.gamestate.c2);
 		}
 	}
+	,TryPlace: function(e,x,y) {
+		if(x == this.gamestate.p.x && y == this.gamestate.p.y || x == this.gamestate.c1.x && y == this.gamestate.c1.y || x == this.gamestate.c2.x && y == this.gamestate.c2.y) {
+			return;
+		}
+		if(x != -1 && y != -1) {
+			var floor = this.gamestate.Tiles[y][x];
+			if(floor != null) {
+				e.x = x;
+				e.y = y;
+				e.altitude = floor.heightCoord();
+				e.fromx = e.x;
+				e.fromy = e.y;
+				e.fromaltitude = e.altitude;
+				this.RenderLevel(false);
+			}
+		}
+	}
+	,AlterAltitude: function(x,y,alt) {
+		var tile = this.gamestate.Tiles[y][x];
+		if(alt == 1) {
+			if(tile == null) {
+				var t = new Tile(x,y,4,-1);
+				this.gamestate.Tiles[y][x] = t;
+			} else if(tile.isWall()) {
+				return;
+			} else {
+				tile.height += 2;
+				if(tile.height > 12) {
+					tile.height = 20;
+					tile.ramp_direction = -1;
+				}
+			}
+		} else if(tile != null) {
+			if(tile.isWall()) {
+				tile.height = 12;
+			} else if(tile.height == 4) {
+				this.gamestate.Tiles[y][x] = null;
+			} else if(tile.ramp_direction != -1 && tile.height == 6) {
+				tile.ramp_direction = -1;
+				tile.height -= 2;
+			} else {
+				tile.height -= 2;
+			}
+		}
+		var ents = this.gamestate.CharactersAt(x,y);
+		if(ents.length > 0) {
+			var ent = ents[0];
+			ent.altitude = tile.heightCoord();
+		}
+		this.RenderLevel(true);
+	}
+	,Rampify: function(x,y,d) {
+		var tile = this.gamestate.TileAt(x,y);
+		if(tile == null) {
+			tile = new Tile(x,y,4,d);
+			this.gamestate.Tiles[y][x] = tile;
+		}
+		if(tile.isWall()) {
+			return;
+		}
+		if(tile.ramp_direction != d) {
+			if(d != -1) {
+				if(tile.ramp_direction == -1) {
+					if(tile.height < 12) {
+						tile.ramp_direction = d;
+						tile.height += 2;
+					}
+				} else {
+					tile.ramp_direction = d;
+				}
+			} else if(tile.ramp_direction == -1) {
+				tile.ramp_direction = d;
+			} else {
+				tile.ramp_direction = d;
+				tile.height -= 2;
+			}
+			tile.ramp_direction = d;
+		}
+		var ents = this.gamestate.CharactersAt(x,y);
+		if(ents.length > 0) {
+			var ent = ents[0];
+			ent.altitude = tile.heightCoord();
+		}
+		this.RenderLevel(true);
+	}
+	,FitInBounds: function(e) {
+		if(e.x < 0) {
+			e.x++;
+		}
+		if(e.y < 0) {
+			e.y++;
+		}
+		if(e.x >= this.gamestate.Tiles[0].length) {
+			haxe_Log.trace("reducingX",{ fileName : "src/Main.hx", lineNumber : 519, className : "Main", methodName : "FitInBounds"});
+			e.x--;
+		}
+		if(e.y >= this.gamestate.Tiles.length) {
+			haxe_Log.trace("reducingY",{ fileName : "src/Main.hx", lineNumber : 523, className : "Main", methodName : "FitInBounds"});
+			e.y--;
+		}
+		e.fromx = e.x;
+		e.fromy = e.y;
+	}
+	,RotateEntity: function(e) {
+		var oldX = e.x;
+		var oldY = e.y;
+		e.x = oldY;
+		e.y = this.gamestate.Tiles.length - oldX - 1;
+		e.fromx = e.x;
+		e.fromy = e.y;
+	}
+	,RotateTile: function(e) {
+		if(e == null) {
+			return;
+		}
+		var oldX = e.x;
+		var oldY = e.y;
+		e.x = oldY;
+		if(e.ramp_direction != -1) {
+			e.ramp_direction = Tile.RotateCounterClockwise(e.ramp_direction);
+		}
+		e.y = this.gamestate.Tiles.length - oldX - 1;
+	}
+	,FlipEntityH: function(e) {
+		if(e == null) {
+			return;
+		}
+		e.x = this.gamestate.Tiles[0].length - 1 - e.x;
+		e.fromx = e.x;
+	}
+	,FlipEntityV: function(e) {
+		e.y = this.gamestate.Tiles.length - 1 - e.y;
+		e.fromy = e.y;
+	}
+	,FlipTileH: function(e) {
+		if(e == null) {
+			return;
+		}
+		e.x = this.gamestate.Tiles[0].length - 1 - e.x;
+		if(e.ramp_direction == 3 || e.ramp_direction == 1) {
+			e.ramp_direction = Tile.FlipDirection(e.ramp_direction);
+		}
+	}
+	,FlipTileV: function(e) {
+		if(e == null) {
+			return;
+		}
+		e.y = this.gamestate.Tiles.length - 1 - e.y;
+		if(e.ramp_direction == 0 || e.ramp_direction == 2) {
+			e.ramp_direction = Tile.FlipDirection(e.ramp_direction);
+		}
+	}
+	,RotateLevel: function() {
+		haxe_Log.trace("rotating level",{ fileName : "src/Main.hx", lineNumber : 588, className : "Main", methodName : "RotateLevel"});
+		var newTiles = [];
+		var old_W = this.gamestate.Tiles[0].length;
+		var old_H = this.gamestate.Tiles.length;
+		var new_W = old_H;
+		var new_H = old_W;
+		var _g = 0;
+		var _g1 = new_H;
+		while(_g < _g1) {
+			var j = _g++;
+			var row_new = [];
+			var _g2 = 0;
+			var _g3 = new_W;
+			while(_g2 < _g3) {
+				var i = _g2++;
+				var tile = this.gamestate.Tiles[i][old_W - 1 - j];
+				this.RotateTile(tile);
+				row_new.push(tile);
+			}
+			newTiles.push(row_new);
+		}
+		this.gamestate.Tiles = newTiles;
+		this.RotateEntity(this.gamestate.p);
+		this.RotateEntity(this.gamestate.c1);
+		this.RotateEntity(this.gamestate.c2);
+		this.RenderLevel(true);
+	}
+	,FlipLevelH: function() {
+		haxe_Log.trace("h-flipping level",{ fileName : "src/Main.hx", lineNumber : 614, className : "Main", methodName : "FlipLevelH"});
+		var _g = 0;
+		var _g1 = this.gamestate.Tiles.length;
+		while(_g < _g1) {
+			var j = _g++;
+			var row = this.gamestate.Tiles[j];
+			row.reverse();
+			var _g2 = 0;
+			var _g3 = row.length;
+			while(_g2 < _g3) {
+				var i = _g2++;
+				this.FlipTileH(row[i]);
+			}
+		}
+		this.FlipEntityH(this.gamestate.p);
+		this.FlipEntityH(this.gamestate.c1);
+		this.FlipEntityH(this.gamestate.c2);
+		this.RenderLevel(true);
+	}
+	,FlipLevelV: function() {
+		haxe_Log.trace("v-flipping level",{ fileName : "src/Main.hx", lineNumber : 631, className : "Main", methodName : "FlipLevelV"});
+		this.gamestate.Tiles.reverse();
+		var _g = 0;
+		var _g1 = this.gamestate.Tiles.length;
+		while(_g < _g1) {
+			var j = _g++;
+			var row = this.gamestate.Tiles[j];
+			var _g2 = 0;
+			var _g3 = row.length;
+			while(_g2 < _g3) {
+				var i = _g2++;
+				this.FlipTileV(row[i]);
+			}
+		}
+		this.FlipEntityV(this.gamestate.p);
+		this.FlipEntityV(this.gamestate.c1);
+		this.FlipEntityV(this.gamestate.c2);
+		this.RenderLevel(true);
+	}
+	,ResizeLevel: function(dN,dS,dW,dE) {
+		if(dN < 0 || dS > 0) {
+			var newRow = [];
+			var _g = 0;
+			var _g1 = this.gamestate.Tiles[0].length;
+			while(_g < _g1) {
+				var i = _g++;
+				newRow.push(null);
+			}
+			if(dN < 0) {
+				this.gamestate.Tiles.splice(0,0,newRow);
+			} else {
+				this.gamestate.Tiles.push(newRow);
+			}
+		}
+		if(dW < 0 || dE > 0) {
+			var _g = 0;
+			var _g1 = this.gamestate.Tiles.length;
+			while(_g < _g1) {
+				var j = _g++;
+				var row = this.gamestate.Tiles[j];
+				if(dW < 0) {
+					row.splice(0,0,null);
+				} else {
+					row.push(null);
+				}
+			}
+		}
+		if(dN > 0) {
+			if(this.gamestate.Tiles.length > 1) {
+				this.gamestate.Tiles.splice(0,1);
+			}
+		}
+		if(dS < 0) {
+			if(this.gamestate.Tiles.length > 1) {
+				this.gamestate.Tiles.splice(this.gamestate.Tiles.length - 1,1);
+			}
+		}
+		if(dW > 0) {
+			if(this.gamestate.Tiles[0].length > 1) {
+				var _g = 0;
+				var _g1 = this.gamestate.Tiles.length;
+				while(_g < _g1) {
+					var j = _g++;
+					var row = this.gamestate.Tiles[j];
+					row.splice(0,1);
+				}
+			}
+		}
+		if(dE < 0) {
+			if(this.gamestate.Tiles[0].length > 1) {
+				var _g = 0;
+				var _g1 = this.gamestate.Tiles.length;
+				while(_g < _g1) {
+					var j = _g++;
+					var row = this.gamestate.Tiles[j];
+					row.splice(row.length - 1,1);
+				}
+			}
+		}
+		var adjust_Y = 0;
+		var adjust_X = 0;
+		if(dN < 0) {
+			adjust_Y = 1;
+		}
+		if(dN > 0) {
+			adjust_Y = -1;
+		}
+		if(dW < 0) {
+			adjust_X = 1;
+		}
+		if(dW > 0) {
+			adjust_X = -1;
+		}
+		var _g = 0;
+		var _g1 = this.gamestate.Tiles.length;
+		while(_g < _g1) {
+			var j = _g++;
+			var row = this.gamestate.Tiles[j];
+			var _g2 = 0;
+			var _g3 = row.length;
+			while(_g2 < _g3) {
+				var i = _g2++;
+				var tile = row[i];
+				if(tile != null) {
+					tile.x += adjust_X;
+					tile.y += adjust_Y;
+				}
+			}
+		}
+		haxe_Log.trace("adjust",{ fileName : "src/Main.hx", lineNumber : 732, className : "Main", methodName : "ResizeLevel"});
+		haxe_Log.trace(this.gamestate.p.x,{ fileName : "src/Main.hx", lineNumber : 733, className : "Main", methodName : "ResizeLevel", customParams : [this.gamestate.p.y]});
+		this.gamestate.p.x += adjust_X;
+		this.gamestate.p.y += adjust_Y;
+		this.gamestate.c1.x += adjust_X;
+		this.gamestate.c1.y += adjust_Y;
+		this.gamestate.c2.x += adjust_X;
+		this.gamestate.c2.y += adjust_Y;
+		haxe_Log.trace(this.gamestate.p.x,{ fileName : "src/Main.hx", lineNumber : 741, className : "Main", methodName : "ResizeLevel", customParams : [this.gamestate.p.y]});
+		this.FitInBounds(this.gamestate.p);
+		this.FitInBounds(this.gamestate.c1);
+		this.FitInBounds(this.gamestate.c2);
+		haxe_Log.trace(this.gamestate.p.x,{ fileName : "src/Main.hx", lineNumber : 746, className : "Main", methodName : "ResizeLevel", customParams : [this.gamestate.p.y]});
+		this.RenderLevel(true);
+	}
 	,EditorUpdate: function() {
 		if(!this.editormode) {
 			var _this = this.editor_gui;
@@ -1409,10 +1767,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 			while(_g < _g1) {
 				var i = _g++;
 				var ei = this.editor_toolbar_interacts[i];
-				if(ei.parent != null) {
-					if(ei != null && ei.parent != null) {
-						ei.parent.removeChild(ei);
-					}
+				if(ei != null && ei.parent != null) {
+					ei.parent.removeChild(ei);
 				}
 			}
 			var _g = 0;
@@ -1420,25 +1776,11 @@ Main.prototype = $extend(SampleApp.prototype,{
 			while(_g < _g1) {
 				var i = _g++;
 				var ei = this.editor_basegrid_interacts[i];
-				if(ei.parent != null) {
-					if(ei != null && ei.parent != null) {
-						ei.parent.removeChild(ei);
-					}
+				if(ei != null && ei.parent != null) {
+					ei.parent.removeChild(ei);
 				}
 			}
 			return;
-		}
-		var _this = this.editor_gui;
-		var f = 2;
-		_this.flags |= f;
-		var _g = 0;
-		var _g1 = this.editor_toolbar_interacts.length;
-		while(_g < _g1) {
-			var i = _g++;
-			var ei = this.editor_toolbar_interacts[i];
-			if(ei.parent == null) {
-				this.s3d.addChild(ei);
-			}
 		}
 		var _g = 0;
 		var _g1 = this.editor_basegrid_interacts.length;
@@ -1452,32 +1794,64 @@ Main.prototype = $extend(SampleApp.prototype,{
 		var _this = this.editor_basegrid;
 		var f = 2;
 		_this.flags |= f;
-		if(hxd_Key.isDown(49)) {
-			this.editor_sel = 0;
-		} else if(hxd_Key.isDown(50)) {
-			this.editor_sel = 1;
-		} else if(hxd_Key.isDown(51)) {
-			this.editor_sel = 2;
-		} else if(hxd_Key.isDown(52)) {
-			this.editor_sel = 3;
-		} else if(hxd_Key.isDown(53)) {
-			this.editor_sel = 4;
-		} else if(hxd_Key.isDown(54)) {
-			this.editor_sel = 5;
-		} else if(hxd_Key.isDown(55)) {
-			this.editor_sel = 6;
-		} else if(hxd_Key.isDown(56)) {
-			this.editor_sel = 7;
-		} else if(hxd_Key.isDown(57)) {
-			this.editor_sel = 8;
-		} else if(hxd_Key.isDown(48)) {
-			this.editor_sel = 9;
-		} else if(hxd_Key.isDown(73)) {
-			this.editor_sel = 10;
-		} else if(hxd_Key.isDown(79)) {
-			this.editor_sel = 11;
-		} else if(hxd_Key.isDown(80)) {
-			this.editor_sel = 12;
+		if(hxd_Key.isPressed(49)) {
+			this.TryPlace(this.gamestate.p,this.editor_cursor_x,this.editor_cursor_y);
+		}
+		if(hxd_Key.isDown(50)) {
+			this.TryPlace(this.gamestate.c1,this.editor_cursor_x,this.editor_cursor_y);
+		}
+		if(hxd_Key.isDown(51)) {
+			this.TryPlace(this.gamestate.c2,this.editor_cursor_x,this.editor_cursor_y);
+		}
+		if(hxd_Key.isPressed(81)) {
+			this.AlterAltitude(this.editor_cursor_x,this.editor_cursor_y,-1);
+		}
+		if(hxd_Key.isPressed(69)) {
+			this.AlterAltitude(this.editor_cursor_x,this.editor_cursor_y,1);
+		}
+		if(hxd_Key.isDown(87)) {
+			this.Rampify(this.editor_cursor_x,this.editor_cursor_y,0);
+		}
+		if(hxd_Key.isDown(83)) {
+			this.Rampify(this.editor_cursor_x,this.editor_cursor_y,2);
+		}
+		if(hxd_Key.isDown(65)) {
+			this.Rampify(this.editor_cursor_x,this.editor_cursor_y,3);
+		}
+		if(hxd_Key.isDown(68)) {
+			this.Rampify(this.editor_cursor_x,this.editor_cursor_y,1);
+		}
+		if(hxd_Key.isDown(70)) {
+			this.Rampify(this.editor_cursor_x,this.editor_cursor_y,-1);
+		}
+		var shiftDown = hxd_Key.isDown(16);
+		var delta = shiftDown ? -1 : 1;
+		if(hxd_Key.isPressed(73)) {
+			this.ResizeLevel(-delta,0,0,0);
+		}
+		if(hxd_Key.isPressed(75)) {
+			this.ResizeLevel(0,delta,0,0);
+		}
+		if(hxd_Key.isPressed(74)) {
+			this.ResizeLevel(0,0,-delta,0);
+		}
+		if(hxd_Key.isPressed(76)) {
+			this.ResizeLevel(0,0,0,delta);
+		}
+		if(hxd_Key.isPressed(82)) {
+			if(shiftDown) {
+				this.RotateLevel();
+				this.RotateLevel();
+				this.RotateLevel();
+			} else {
+				this.RotateLevel();
+			}
+		}
+		if(hxd_Key.isPressed(72)) {
+			this.FlipLevelH();
+		}
+		if(hxd_Key.isPressed(86)) {
+			this.FlipLevelV();
 		}
 		var buttonlist = this.editor_gui.children[0];
 		var _g = 0;
@@ -1565,7 +1939,56 @@ Main.prototype = $extend(SampleApp.prototype,{
 		}
 		if(hxd_Key.isPressed(9)) {
 			this.editormode = !this.editormode;
-			haxe_Log.trace(this.editormode,{ fileName : "src/Main.hx", lineNumber : 508, className : "Main", methodName : "update"});
+			if(this.editormode == false) {
+				var _g = 0;
+				var _g1 = this.obs_static_grid.length;
+				while(_g < _g1) {
+					var j = _g++;
+					var row = this.obs_static_grid[j];
+					var _g2 = 0;
+					var _g3 = row.length;
+					while(_g2 < _g3) {
+						var i = _g2++;
+						var o = row[i];
+						if(o != null) {
+							o.scaleX = 1;
+							var f = 1;
+							var b = true;
+							if(b) {
+								o.flags |= f;
+							} else {
+								o.flags &= ~f;
+							}
+							o.scaleY = 1;
+							var f1 = 1;
+							var b1 = true;
+							if(b1) {
+								o.flags |= f1;
+							} else {
+								o.flags &= ~f1;
+							}
+							o.scaleZ = 1;
+							var f2 = 1;
+							var b2 = true;
+							if(b2) {
+								o.flags |= f2;
+							} else {
+								o.flags &= ~f2;
+							}
+							var f3 = 1;
+							var b3 = true;
+							if(b3) {
+								o.flags |= f3;
+							} else {
+								o.flags &= ~f3;
+							}
+							if(o != null) {
+								o.material.set_blendMode(h2d_BlendMode.None);
+							}
+						}
+					}
+				}
+			}
 		}
 		this.AnimatePositions();
 		this.EditorUpdate();
@@ -1636,6 +2059,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 			if(o != null) {
 				o.material.set_blendMode(h2d_BlendMode.Add);
 			}
+			_gthis.editor_cursor_x = x;
+			_gthis.editor_cursor_y = y;
 		};
 		i.onOut = function(e) {
 			m.scaleX = scale;
@@ -1672,6 +2097,10 @@ Main.prototype = $extend(SampleApp.prototype,{
 			var o = js_Boot.__cast(_gthis.obs_static_grid[y][x] , h3d_scene_Mesh);
 			if(o != null) {
 				o.material.set_blendMode(h2d_BlendMode.None);
+			}
+			if(_gthis.editor_cursor_x == x && _gthis.editor_cursor_y == y) {
+				_gthis.editor_cursor_x = -1;
+				_gthis.editor_cursor_y = -1;
 			}
 		};
 	}
@@ -1773,7 +2202,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 	}
 	,onBasegridButtonClick: function(i,j) {
 		this.editor_sel = i;
-		haxe_Log.trace(i,{ fileName : "src/Main.hx", lineNumber : 598, className : "Main", methodName : "onBasegridButtonClick", customParams : [j]});
+		haxe_Log.trace(i,{ fileName : "src/Main.hx", lineNumber : 1010, className : "Main", methodName : "onBasegridButtonClick", customParams : [j]});
 	}
 	,onEditorToolbarButtonClick: function(i) {
 		this.editor_sel = i;
@@ -1788,7 +2217,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		while(_g < _g1) {
 			var i = _g++;
 			var button_name = Main.editor_buttons[i];
-			haxe_Log.trace("loading ",{ fileName : "src/Main.hx", lineNumber : 614, className : "Main", methodName : "create_editor_array", customParams : [button_name]});
+			haxe_Log.trace("loading ",{ fileName : "src/Main.hx", lineNumber : 1026, className : "Main", methodName : "create_editor_array", customParams : [button_name]});
 			var obj = this.prefabs.h[button_name].clone();
 			var meshes = obj.getMeshes();
 			var _g2 = 0;
@@ -1948,7 +2377,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		var config_bytes = Main.VirtualResources.h["config.json"];
 		var config_str = hxd_res_Any.fromBytes("config.json",config_bytes).toText();
 		this.config_dat = JSON.parse(config_str);
-		haxe_Log.trace(this.config_dat,{ fileName : "src/Main.hx", lineNumber : 687, className : "Main", methodName : "init"});
+		haxe_Log.trace(this.config_dat,{ fileName : "src/Main.hx", lineNumber : 1099, className : "Main", methodName : "init"});
 		var mesh_bytes_fbx = Main.VirtualResources.h["blends/models.fbx"];
 		var mesh_res = this.fbxToHmd(mesh_bytes_fbx,true);
 		var mesh_model = mesh_res.toModel();
@@ -1957,7 +2386,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		var tex = tex_res.toTexture();
 		var materials = [];
 		obj.getMaterials(materials,true);
-		haxe_Log.trace("we have ",{ fileName : "src/Main.hx", lineNumber : 701, className : "Main", methodName : "init", customParams : [materials.length," materials"]});
+		haxe_Log.trace("we have ",{ fileName : "src/Main.hx", lineNumber : 1113, className : "Main", methodName : "init", customParams : [materials.length," materials"]});
 		var _g = 0;
 		var _g1 = materials.length;
 		while(_g < _g1) {
@@ -43298,6 +43727,7 @@ h3d_scene_Interactive.prototype = $extend(h3d_scene_Object.prototype,{
 		h3d_scene_Object.prototype.onAdd.call(this);
 	}
 	,onRemove: function() {
+		haxe_Log.trace("Interactive.onRemove",{ fileName : "h3d/scene/Interactive.hx", lineNumber : 52, className : "h3d.scene.Interactive", methodName : "onRemove", customParams : [this.scene]});
 		if(this.scene != null) {
 			this.scene.removeEventTarget(this);
 			this.scene = null;

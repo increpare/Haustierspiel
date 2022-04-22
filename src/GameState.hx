@@ -21,7 +21,7 @@ interface Positional {
 	public var height:Int;
 }
 
-enum abstract RampDirection(Int) to Int {
+enum abstract RampDirection(Int) to Int from Int {
 	var NONE=-1;
 	var N=0;
 	var E=1;
@@ -57,7 +57,7 @@ class Tile implements Positional {
     }
 
     public function heightCoord():Int{
-        return height-altitude + (ramp_direction==NONE ? 0 : -1);
+        return height + altitude + (ramp_direction==NONE ? 0 : -1);
     }
 
     public static function FlipDirection(d:Int):Int{
@@ -69,6 +69,16 @@ class Tile implements Positional {
             default:return -1;
         }
     }
+
+	public static function RotateCounterClockwise(d:RampDirection):RampDirection{
+		switch(d){
+			case N: return W;
+			case E: return N;
+			case S: return E;
+			case W: return S;
+			default:return NONE;
+		}
+	}
 }
 
 class Entity implements Positional {
@@ -105,7 +115,6 @@ class GameState {
 	public var c2:Entity;
 
     public function TileAt(i:Int,j:Int):Tile{
-        trace(i,j,w,h);
         if (i<0 || j<0 || i>=w || j>=h) {
             return null;
         }
@@ -280,7 +289,9 @@ class GameState {
 						result.c2 = new Entity(j, i, 12, 4, N);
 				}
 			}
-			result.Tiles.push(row);
+			if (row.length>0){
+				result.Tiles.push(row);
+			}			
 		}
 
 		return result;
