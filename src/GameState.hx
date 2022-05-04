@@ -215,7 +215,7 @@ class GameState {
 		}
 		var tx:Int = entity.x + dx;
 		var ty:Int = entity.y + dy;
-		var curtile = TileAt(entity.x, entity.y);
+		var curtile = TileAt(entity.x, entity.y);//needs to return structure with height and ramp-direction
 		var tile = TileAt(tx, ty);
 		if (tile == null)
 			return false;
