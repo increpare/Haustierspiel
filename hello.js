@@ -74,6 +74,92 @@ Positional.__isInterface__ = true;
 Positional.prototype = {
 	__class__: Positional
 };
+var Interval = function(min,max) {
+	this.min = min;
+	this.max = max;
+};
+$hxClasses["Interval"] = Interval;
+Interval.__name__ = "Interval";
+Interval.prototype = {
+	Overlaps: function(other) {
+		if(other.min >= this.max || other.max <= this.min) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+	,__class__: Interval
+};
+var EdgeSilhouette = function(e,dir,baseDir) {
+	var _dir = dir | 0;
+	var _baseDir = baseDir | 0;
+	this.x = e.x;
+	this.y = e.y;
+	this.faceDir = dir;
+	this.left = new Interval(e.altitude,e.altitude + e.height);
+	this.right = new Interval(e.altitude,e.altitude + e.height);
+	if(baseDir != -1) {
+		if(_dir == _baseDir) {
+			this.left.min += 1;
+			this.left.max += 1;
+			this.right.min += 1;
+			this.right.max += 1;
+		} else if(_dir == Tile.FlipDirection(_baseDir)) {
+			this.left.min += -1;
+			this.left.max += -1;
+			this.right.min += -1;
+			this.right.max += -1;
+		} else if(_dir == Tile.RotateCounterClockwise(_baseDir)) {
+			this.left.min += -1;
+			this.left.max += -1;
+			this.right.min += 1;
+			this.right.max += 1;
+		} else {
+			this.left.min += 1;
+			this.left.max += 1;
+			this.right.min += -1;
+			this.right.max += -1;
+		}
+	}
+};
+$hxClasses["EdgeSilhouette"] = EdgeSilhouette;
+EdgeSilhouette.__name__ = "EdgeSilhouette";
+EdgeSilhouette.DirX = function(d) {
+	if(d == 1) {
+		return 1;
+	} else if(d == 3) {
+		return -1;
+	} else {
+		return 0;
+	}
+};
+EdgeSilhouette.DirY = function(d) {
+	if(d == 0) {
+		return -1;
+	} else if(d == 2) {
+		return 1;
+	} else {
+		return 0;
+	}
+};
+EdgeSilhouette.prototype = {
+	Overlaps: function(other,other_rampDir) {
+		var targetX = this.x + EdgeSilhouette.DirX(this.faceDir);
+		var targetY = this.y + EdgeSilhouette.DirY(this.faceDir);
+		if(targetX != other.x || targetY != other.y) {
+			return false;
+		}
+		var other_fromDir = Tile.FlipDirection(this.faceDir | 0);
+		var other_silhouette = new EdgeSilhouette(other,other_fromDir,other_rampDir);
+		haxe_Log.trace("other_silhouette",{ fileName : "src/GameState.hx", lineNumber : 131, className : "EdgeSilhouette", methodName : "Overlaps"});
+		haxe_Log.trace(other_silhouette,{ fileName : "src/GameState.hx", lineNumber : 132, className : "EdgeSilhouette", methodName : "Overlaps"});
+		if(this.left.Overlaps(other_silhouette.right) || this.right.Overlaps(other_silhouette.left)) {
+			return true;
+		}
+		return false;
+	}
+	,__class__: EdgeSilhouette
+};
 var Tile = function(x,y,height,ramp_direction) {
 	this.ramp_direction = -1;
 	this.height = 4;
@@ -134,6 +220,7 @@ var Entity = function(x,y,altitude,height,dir) {
 	this.altitude = 0;
 	this.y = 0;
 	this.x = 0;
+	haxe_Log.trace("creating new entity of height " + height,{ fileName : "src/GameState.hx", lineNumber : 197, className : "Entity", methodName : "new"});
 	this.x = x;
 	this.y = y;
 	this.fromx = x;
@@ -219,11 +306,11 @@ GameState.LoadFromString = function(s) {
 				break;
 			case "B":
 				row.push(new Tile(j,i,6,-1));
-				result.pillow = new Entity(j,i,6,4,2);
+				result.pillow = new Entity(j,i,6,2,2);
 				break;
 			case "C":
 				row.push(new Tile(j,i,10,-1));
-				result.pillow = new Entity(j,i,10,4,2);
+				result.pillow = new Entity(j,i,10,2,2);
 				break;
 			case "D":
 				row.push(new Tile(j,i,8,1));
@@ -275,11 +362,11 @@ GameState.LoadFromString = function(s) {
 				break;
 			case "b":
 				row.push(new Tile(j,i,4,-1));
-				result.pillow = new Entity(j,i,4,4,2);
+				result.pillow = new Entity(j,i,4,2,2);
 				break;
 			case "c":
 				row.push(new Tile(j,i,8,-1));
-				result.pillow = new Entity(j,i,8,4,2);
+				result.pillow = new Entity(j,i,8,2,2);
 				break;
 			case "d":
 				row.push(new Tile(j,i,6,1));
@@ -340,7 +427,7 @@ GameState.LoadFromString = function(s) {
 				break;
 			case "x":
 				row.push(new Tile(j,i,12,-1));
-				result.pillow = new Entity(j,i,12,4,2);
+				result.pillow = new Entity(j,i,12,2,2);
 				break;
 			}
 		}
@@ -361,6 +448,11 @@ GameState.prototype = {
 		var serializer = new haxe_Serializer();
 		serializer.serialize(this);
 		return serializer.toString();
+	}
+	,ToStringTrace: function() {
+		var result_b = "";
+		result_b += Std.string(this.p.x + "," + this.p.y + "," + this.p.altitude + "," + this.c1.x + "," + this.c1.y + "," + this.c1.altitude + "," + this.c2.x + "," + this.c2.y + "," + this.c2.altitude);
+		return result_b;
 	}
 	,Heuristic: function() {
 		var targetpoints = [[this.c1.x + 2,this.c1.y],[this.c1.x - 2,this.c1.y],[this.c1.x,this.c1.y + 2],[this.c1.x,this.c1.y - 2]];
@@ -424,13 +516,23 @@ GameState.prototype = {
 		var ty = entity.y + dy;
 		var curtile = this.TileAt(entity.x,entity.y);
 		var tile = this.TileAt(tx,ty);
+		var ents = this.CharactersAt(tx,ty);
+		var _g = 0;
+		var _g1 = ents.length;
+		while(_g < _g1) {
+			var i = _g++;
+			var ent = ents[i];
+			if(ent.altitude < entity.altitude) {
+				tile = new Tile(tx,ty,entity.altitude + tile.altitude,tile.ramp_direction);
+			}
+		}
 		if(tile == null) {
 			return false;
 		}
 		if(tile.isWall()) {
 			return false;
 		}
-		if(curtile.heightCoord() < tile.heightCoord()) {
+		if(entity.altitude < tile.heightCoord()) {
 			if(tile.ramp_direction != -1 && (tile.ramp_direction | 0) != (d | 0)) {
 				return false;
 			}
@@ -442,20 +544,24 @@ GameState.prototype = {
 			if(curtile.ramp_direction == -1 && tile.ramp_direction == -1) {
 				return false;
 			}
-			if(curtile.heightCoord() + 2 < tile.heightCoord()) {
+			if(entity.altitude + 2 < tile.heightCoord()) {
 				return false;
 			}
 		}
 		if(curtile.ramp_direction != -1 && tile.ramp_direction != -1) {
-			if((tile.ramp_direction | 0) != (d | 0)) {
-				if(curtile.heightCoord() <= tile.heightCoord()) {
-					if((curtile.ramp_direction | 0) != (tile.ramp_direction | 0)) {
-						if((curtile.ramp_direction | 0) == Tile.FlipDirection(tile.ramp_direction | 0)) {
-							if((d | 0) != (curtile.ramp_direction | 0)) {
+			if(entity.height == tile.heightCoord() && curtile.ramp_direction == Tile.FlipDirection(d) && curtile.ramp_direction != Tile.FlipDirection(tile.ramp_direction)) {
+				return false;
+			} else if(!(entity.height == tile.heightCoord() && (curtile.ramp_direction | 0) == (d | 0))) {
+				if((tile.ramp_direction | 0) != (d | 0)) {
+					if(entity.altitude <= tile.heightCoord()) {
+						if((curtile.ramp_direction | 0) != (tile.ramp_direction | 0)) {
+							if((curtile.ramp_direction | 0) == Tile.FlipDirection(tile.ramp_direction | 0)) {
+								if((d | 0) != (curtile.ramp_direction | 0)) {
+									return false;
+								}
+							} else {
 								return false;
 							}
-						} else {
-							return false;
 						}
 					}
 				}
@@ -464,9 +570,11 @@ GameState.prototype = {
 		return true;
 	}
 	,tryMove: function(entity,d,canChain,canTurn) {
+		haxe_Log.trace("checking canmove",{ fileName : "src/GameState.hx", lineNumber : 391, className : "GameState", methodName : "tryMove"});
 		if(!this.canMove(entity,d)) {
 			return false;
 		}
+		haxe_Log.trace("can move",{ fileName : "src/GameState.hx", lineNumber : 394, className : "GameState", methodName : "tryMove"});
 		var dx = 0;
 		var dy = 0;
 		switch(d) {
@@ -485,44 +593,75 @@ GameState.prototype = {
 		}
 		var tx = entity.x + dx;
 		var ty = entity.y + dy;
+		haxe_Log.trace("Entity",{ fileName : "src/GameState.hx", lineNumber : 411, className : "GameState", methodName : "tryMove"});
+		haxe_Log.trace(entity,{ fileName : "src/GameState.hx", lineNumber : 412, className : "GameState", methodName : "tryMove"});
 		var ents = this.CharactersAt(tx,ty);
-		if(ents.length > 0) {
-			if(canChain == false) {
-				return false;
-			} else {
-				var ent_under = ents[0];
-				if(ent_under.altitude + ent_under.height >= entity.altitude) {
-					if(this.tryMove(ent_under,d,true,false) == false) {
+		haxe_Log.trace("tryMove",{ fileName : "src/GameState.hx", lineNumber : 415, className : "GameState", methodName : "tryMove"});
+		haxe_Log.trace(ents,{ fileName : "src/GameState.hx", lineNumber : 416, className : "GameState", methodName : "tryMove"});
+		var target_floorTile = this.TileAt(tx,ty);
+		var target_ramp = target_floorTile.ramp_direction;
+		var forwardSilhouette = new EdgeSilhouette(entity,d,target_ramp);
+		var movedY = -1;
+		var _g = 0;
+		var _g1 = ents.length;
+		while(_g < _g1) {
+			var i = _g++;
+			var ent = ents[i];
+			haxe_Log.trace("ent",{ fileName : "src/GameState.hx", lineNumber : 424, className : "GameState", methodName : "tryMove"});
+			haxe_Log.trace(ent,{ fileName : "src/GameState.hx", lineNumber : 425, className : "GameState", methodName : "tryMove"});
+			haxe_Log.trace("forwardSilhouette",{ fileName : "src/GameState.hx", lineNumber : 426, className : "GameState", methodName : "tryMove"});
+			haxe_Log.trace(forwardSilhouette,{ fileName : "src/GameState.hx", lineNumber : 427, className : "GameState", methodName : "tryMove"});
+			if(forwardSilhouette.Overlaps(ent,target_ramp)) {
+				haxe_Log.trace("overlapped",{ fileName : "src/GameState.hx", lineNumber : 429, className : "GameState", methodName : "tryMove"});
+				if(canChain == false) {
+					return false;
+				} else {
+					var sy = ent.y;
+					if(this.tryMove(ent,d,true,false) == false) {
 						return false;
 					}
-					if(ents.length > 1) {
-						var ent_above = ents[1];
-						ent_above.fromx = ent_above.x;
-						ent_above.fromy = ent_above.y;
-						ent_above.fromaltitude = ent_above.altitude;
-						ent_above.x = ent_under.x;
-						ent_above.y = ent_under.y;
-						ent_above.altitude = ent_under.altitude + ent_under.height;
+					if(movedY < 0 || movedY > sy) {
+						movedY = sy;
 					}
 				}
 			}
 		}
-		var tile = this.TileAt(tx,ty);
+		if(movedY >= 0) {
+			var _g = 0;
+			var _g1 = ents.length - 1;
+			while(_g < _g1) {
+				var i = _g++;
+				var ent = ents[i];
+				if(ent.x == tx && ent.y == ty && ent.altitude > movedY) {
+					this.tryMove(ent,d,true,false);
+				}
+			}
+		}
 		entity.fromx = entity.x;
 		entity.fromy = entity.y;
 		entity.fromaltitude = entity.altitude;
 		entity.fromdir = entity.dir;
 		entity.x = tx;
 		entity.y = ty;
-		entity.altitude = tile.altitude + tile.height;
+		entity.altitude = target_floorTile.altitude + target_floorTile.height;
 		if(canTurn) {
 			if(!(entity.dir == d || entity.dir == Tile.FlipDirection(d))) {
 				entity.dir = d;
 			}
 		}
-		if(tile.ramp_direction != -1) {
+		if(target_floorTile.ramp_direction != -1) {
 			entity.altitude -= 1;
 		}
+		var _g = 0;
+		var _g1 = ents.length;
+		while(_g < _g1) {
+			var i = _g++;
+			var ent = ents[i];
+			if(ent.x == tx && ent.y == ty && ent.altitude + ent.height > entity.altitude) {
+				entity.altitude = ent.altitude + ent.height;
+			}
+		}
+		haxe_Log.trace("entity.altitude " + entity.altitude,{ fileName : "src/GameState.hx", lineNumber : 482, className : "GameState", methodName : "tryMove"});
 		return true;
 	}
 	,Transform: function(zustand,direction) {
@@ -591,12 +730,12 @@ GameState.prototype = {
 		return [];
 	}
 	,ToHash: function() {
-		haxe_Log.trace("serializing:",{ fileName : "src/GameState.hx", lineNumber : 406, className : "GameState", methodName : "ToHash"});
-		haxe_Log.trace(this.p.x,{ fileName : "src/GameState.hx", lineNumber : 407, className : "GameState", methodName : "ToHash", customParams : [this.p.y,this.p.height]});
-		haxe_Log.trace(this.c1.x,{ fileName : "src/GameState.hx", lineNumber : 408, className : "GameState", methodName : "ToHash", customParams : [this.c1.y,this.c1.height]});
-		haxe_Log.trace(this.c2.x,{ fileName : "src/GameState.hx", lineNumber : 409, className : "GameState", methodName : "ToHash", customParams : [this.c2.y,this.c2.height]});
+		haxe_Log.trace("serializing:",{ fileName : "src/GameState.hx", lineNumber : 552, className : "GameState", methodName : "ToHash"});
+		haxe_Log.trace(this.p.x,{ fileName : "src/GameState.hx", lineNumber : 553, className : "GameState", methodName : "ToHash", customParams : [this.p.y,this.p.height]});
+		haxe_Log.trace(this.c1.x,{ fileName : "src/GameState.hx", lineNumber : 554, className : "GameState", methodName : "ToHash", customParams : [this.c1.y,this.c1.height]});
+		haxe_Log.trace(this.c2.x,{ fileName : "src/GameState.hx", lineNumber : 555, className : "GameState", methodName : "ToHash", customParams : [this.c2.y,this.c2.height]});
 		if(this.pillow != null) {
-			haxe_Log.trace(this.pillow.x,{ fileName : "src/GameState.hx", lineNumber : 411, className : "GameState", methodName : "ToHash", customParams : [this.pillow.y,this.pillow.height]});
+			haxe_Log.trace(this.pillow.x,{ fileName : "src/GameState.hx", lineNumber : 557, className : "GameState", methodName : "ToHash", customParams : [this.pillow.y,this.pillow.height]});
 		}
 		var low = this.p.x + this.p.y * 32 + this.p.height * 1024 + this.c1.x * 32768 + this.c1.y * 1048576 + this.c1.height * 33554432;
 		var high = this.c2.x + this.c2.y * 32 + this.c2.height * 1024;
@@ -623,10 +762,10 @@ GameState.prototype = {
 			this.pillow.y = 31 & high >> 20;
 			this.pillow.height = 31 & high >> 25;
 		}
-		haxe_Log.trace("deserialized:",{ fileName : "src/GameState.hx", lineNumber : 460, className : "GameState", methodName : "FromHash"});
-		haxe_Log.trace(this.p.x,{ fileName : "src/GameState.hx", lineNumber : 461, className : "GameState", methodName : "FromHash", customParams : [this.p.y,this.p.height]});
-		haxe_Log.trace(this.c1.x,{ fileName : "src/GameState.hx", lineNumber : 462, className : "GameState", methodName : "FromHash", customParams : [this.c1.y,this.c1.height]});
-		haxe_Log.trace(this.c2.x,{ fileName : "src/GameState.hx", lineNumber : 463, className : "GameState", methodName : "FromHash", customParams : [this.c2.y,this.c2.height]});
+		haxe_Log.trace("deserialized:",{ fileName : "src/GameState.hx", lineNumber : 606, className : "GameState", methodName : "FromHash"});
+		haxe_Log.trace(this.p.x,{ fileName : "src/GameState.hx", lineNumber : 607, className : "GameState", methodName : "FromHash", customParams : [this.p.y,this.p.height]});
+		haxe_Log.trace(this.c1.x,{ fileName : "src/GameState.hx", lineNumber : 608, className : "GameState", methodName : "FromHash", customParams : [this.c1.y,this.c1.height]});
+		haxe_Log.trace(this.c2.x,{ fileName : "src/GameState.hx", lineNumber : 609, className : "GameState", methodName : "FromHash", customParams : [this.c2.y,this.c2.height]});
 	}
 	,TileAt: function(i,j) {
 		if(i < 0 || j < 0 || i >= this.w || j >= this.h) {
@@ -1070,10 +1209,13 @@ var Main = function() {
 	this.editor_cursor_y = -1;
 	this.editor_cursor_x = -1;
 	this.moveTimer = -1;
+	this.lastInputSuccess = false;
+	this.lastInput = -1;
+	this.recording_test = false;
 	this.editor_basegrid_interacts = [];
 	this.editor_sel = 0;
 	this.editormode = false;
-	this.levelDat = "cy9:GameStatey4:dirsazi1i2i3hy5:Tilesaau2cy4:Tiley14:ramp_directioni-1y6:heighti20y8:altitudezy1:yi1y1:xi2gcR3R4i-1R5i20R6zR7i1R8i3gcR3R4i-1R5i20R6zR7i1R8i4gncR3R4i-1R5i20R6zR7i1R8i6gcR3R4i-1R5i20R6zR7i1R8i7gcR3R4i-1R5i20R6zR7i1R8i8gnhacR3R4i-1R5i20R6zR7i2R8zgcR3R4i-1R5i20R6zR7i2R8i1gcR3R4i-1R5i20R6zR7i2R8i2gcR3R4i-1R5i12R6zR7i2R8i3gcR3R4i-1R5i12R6zR7i2R8i4gcR3R4i-1R5i12R6zR7i2R8i5gcR3R4i-1R5i12R6zR7i2R8i6gcR3R4i-1R5i12R6zR7i2R8i7gcR3R4i-1R5i20R6zR7i2R8i8gcR3R4i-1R5i20R6zR7i2R8i9ghacR3R4i-1R5i20R6zR7i3R8zgcR3R4i-1R5i20R6zR7i3R8i1gcR3R4i-1R5i20R6zR7i3R8i2gcR3R4i-1R5i12R6zR7i3R8i3gcR3R4zR5i12R6zR7i3R8i4gcR3R4i-1R5i12R6zR7i3R8i5gcR3R4i3R5i12R6zR7i3R8i6gcR3R4zR5i12R6zR7i3R8i7gcR3R4i-1R5i20R6zR7i3R8i8gcR3R4i-1R5i20R6zR7i3R8i9ghacR3R4i-1R5i20R6zR7i4R8zgcR3R4i-1R5i20R6zR7i4R8i1gcR3R4i-1R5i20R6zR7i4R8i2gcR3R4i-1R5i12R6zR7i4R8i3gcR3R4zR5i10R6zR7i4R8i4gcR3R4zR5i10R6zR7i4R8i5gcR3R4i-1R5i8R6zR7i4R8i6gcR3R4i-1R5i10R6zR7i4R8i7gcR3R4i-1R5i20R6zR7i4R8i8gcR3R4i-1R5i20R6zR7i4R8i9ghacR3R4i-1R5i6R6zR7i5R8zgcR3R4zR5i8R6zR7i5R8i1gcR3R4i-1R5i6R6zR7i5R8i2gcR3R4i-1R5i6R6zR7i5R8i3gcR3R4i1R5i8R6zR7i5R8i4gcR3R4i3R5i10R6zR7i5R8i5gcR3R4i3R5i8R6zR7i5R8i6gcR3R4i-1R5i6R6zR7i5R8i7gcR3R4i-1R5i6R6zR7i5R8i8gcR3R4i-1R5i6R6zR7i5R8i9ghacR3R4i1R5i8R6zR7i6R8zgcR3R4i3R5i8R6zR7i6R8i1gcR3R4i-1R5i6R6zR7i6R8i2gcR3R4i-1R5i6R6zR7i6R8i3gcR3R4i-1R5i6R6zR7i6R8i4gcR3R4zR5i8R6zR7i6R8i5gcR3R4i-1R5i6R6zR7i6R8i6gcR3R4i-1R5i6R6zR7i6R8i7gcR3R4i-1R5i6R6zR7i6R8i8gcR3R4i-1R5i6R6zR7i6R8i9ghacR3R4i-1R5i6R6zR7i7R8zgcR3R4i2R5i8R6zR7i7R8i1gcR3R4i-1R5i6R6zR7i7R8i2gcR3R4i-1R5i6R6zR7i7R8i3gcR3R4i-1R5i6R6zR7i7R8i4gcR3R4i-1R5i6R6zR7i7R8i5gcR3R4i-1R5i6R6zR7i7R8i6gcR3R4i3R5i6R6zR7i7R8i7gcR3R4i-1R5i4R6zR7i7R8i8gcR3R4i-1R5i4R6zR7i7R8i9ghancR3R4i-1R5i4R6zR7i8R8i1gcR3R4zR5i6R6zR7i8R8i2gcR3R4i-1R5i4R6zR7i8R8i3gcR3R4i-1R5i4R6zR7i8R8i4gcR3R4i-1R5i4R6zR7i8R8i5gcR3R4i-1R5i4R6zR7i8R8i6gcR3R4i-1R5i4R6zR7i8R8i7gcR3R4i-1R5i4R6zR7i8R8i8gcR3R4i2R5i6R6zR7i8R8i9ghancR3R4i-1R5i4R6zR7i9R8i1gcR3R4i-1R5i4R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gcR3R4i-1R5i4R6zR7i9R8i4gcR3R4i1R5i6R6zR7i9R8i5gcR3R4i-1R5i6R6zR7i9R8i6gcR3R4i3R5i6R6zR7i9R8i7gcR3R4i-1R5i4R6zR7i9R8i8gcR3R4i-1R5i6R6zR7i9R8i9ghhy2:c2cy6:Entityy12:fromaltitudei6y5:fromyi6y5:fromxi8R5i4R6i6R7i6R8i8y3:diri2y7:fromdiri2gy1:pcR10R11i6R12i7R13i2R5i2R6i6R7i7R8i2R14i2R15i2gy2:c1cR10R11i4R12i8R13i4R5i4R6i4R7i8R8i4R14i2R15i2gy6:pillowcR10R11i4R12i7R13i3R5i1R6i4R7i7R8i3R14i2R15i2gg";
+	this.levelDat = "cy9:GameStatey4:dirsazi1i2i3hy5:Tilesaancy4:Tiley14:ramp_directioni-1y6:heighti20y8:altitudezy1:yi1y1:xi1gcR3R4i-1R5i20R6zR7i1R8i2gcR3R4i-1R5i20R6zR7i1R8i3gncR3R4i-1R5i20R6zR7i1R8i5gcR3R4i-1R5i20R6zR7i1R8i6gcR3R4i-1R5i20R6zR7i1R8i7gnhacR3R4i-1R5i20R6zR7i2R8zgcR3R4i-1R5i20R6zR7i2R8i1gcR3R4i-1R5i12R6zR7i2R8i2gcR3R4i-1R5i12R6zR7i2R8i3gcR3R4i-1R5i12R6zR7i2R8i4gcR3R4i-1R5i12R6zR7i2R8i5gcR3R4i-1R5i12R6zR7i2R8i6gcR3R4i-1R5i20R6zR7i2R8i7gcR3R4i-1R5i20R6zR7i2R8i8ghacR3R4i-1R5i20R6zR7i3R8zgcR3R4i-1R5i20R6zR7i3R8i1gcR3R4i-1R5i12R6zR7i3R8i2gcR3R4zR5i12R6zR7i3R8i3gcR3R4i-1R5i12R6zR7i3R8i4gcR3R4i3R5i12R6zR7i3R8i5gcR3R4zR5i12R6zR7i3R8i6gcR3R4i-1R5i20R6zR7i3R8i7gcR3R4i-1R5i20R6zR7i3R8i8ghacR3R4i-1R5i20R6zR7i4R8zgcR3R4i-1R5i20R6zR7i4R8i1gcR3R4i-1R5i12R6zR7i4R8i2gcR3R4zR5i10R6zR7i4R8i3gcR3R4zR5i10R6zR7i4R8i4gcR3R4i-1R5i8R6zR7i4R8i5gcR3R4i-1R5i10R6zR7i4R8i6gcR3R4i-1R5i20R6zR7i4R8i7gcR3R4i-1R5i20R6zR7i4R8i8ghacR3R4zR5i8R6zR7i5R8zgcR3R4i-1R5i6R6zR7i5R8i1gcR3R4i-1R5i6R6zR7i5R8i2gcR3R4i1R5i8R6zR7i5R8i3gcR3R4i3R5i10R6zR7i5R8i4gcR3R4i3R5i8R6zR7i5R8i5gcR3R4i-1R5i6R6zR7i5R8i6gcR3R4i-1R5i6R6zR7i5R8i7gcR3R4i-1R5i6R6zR7i5R8i8ghacR3R4i3R5i8R6zR7i6R8zgcR3R4i-1R5i6R6zR7i6R8i1gcR3R4i2R5i8R6zR7i6R8i2gcR3R4i-1R5i6R6zR7i6R8i3gcR3R4zR5i8R6zR7i6R8i4gcR3R4i-1R5i6R6zR7i6R8i5gcR3R4i-1R5i6R6zR7i6R8i6gcR3R4i-1R5i6R6zR7i6R8i7gcR3R4i-1R5i6R6zR7i6R8i8ghacR3R4i2R5i8R6zR7i7R8zgcR3R4i-1R5i8R6zR7i7R8i1gcR3R4i3R5i8R6zR7i7R8i2gcR3R4i-1R5i6R6zR7i7R8i3gcR3R4i-1R5i6R6zR7i7R8i4gcR3R4i-1R5i6R6zR7i7R8i5gcR3R4i3R5i6R6zR7i7R8i6gcR3R4i-1R5i4R6zR7i7R8i7gcR3R4i-1R5i4R6zR7i7R8i8ghacR3R4i-1R5i4R6zR7i8R8zgcR3R4zR5i8R6zR7i8R8i1gcR3R4zR5i6R6zR7i8R8i2gcR3R4i-1R5i4R6zR7i8R8i3gcR3R4i-1R5i4R6zR7i8R8i4gcR3R4i-1R5i6R6zR7i8R8i5gcR3R4i-1R5i4R6zR7i8R8i6gcR3R4i-1R5i4R6zR7i8R8i7gcR3R4i2R5i6R6zR7i8R8i8ghacR3R4i-1R5i4R6zR7i9R8zgcR3R4i-1R5i4R6zR7i9R8i1gcR3R4zR5i6R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gcR3R4i1R5i6R6zR7i9R8i4gcR3R4i-1R5i6R6zR7i9R8i5gcR3R4i3R5i6R6zR7i9R8i6gcR3R4i-1R5i4R6zR7i9R8i7gcR3R4i-1R5i6R6zR7i9R8i8ghancR3R4i-1R5i4R6zR7i9R8i1gcR3R4i-1R5i4R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gu5hhy2:c2cy6:Entityy12:fromaltitudei4y5:fromyi7y5:fromxi6R5i4R6i4R7i7R8i6y3:diri2y7:fromdiri2gy1:pcR10R11i6R12i6R13i3R5i2R6i6R7i6R8i3R14i2R15i2gy2:c1cR10R11i6R12i5R13i6R5i4R6i6R7i5R8i6R14i2R15i2gy6:pillowcR10R11i5R12i7R13i2R5i2R6i5R7i7R8i2R14i2R15i2gg";
 	SampleApp.call(this);
 };
 $hxClasses["Main"] = Main;
@@ -1095,11 +1237,11 @@ Main.loadExternalResources = function() {
 		cur[0].onLoaded = (function(cur,p) {
 			return function(bytes) {
 				try {
-					haxe_Log.trace("loaded " + p[0] + " of size " + bytes.length,{ fileName : "src/Main.hx", lineNumber : 1132, className : "Main", methodName : "loadExternalResources"});
+					haxe_Log.trace("loaded " + p[0] + " of size " + bytes.length,{ fileName : "src/Main.hx", lineNumber : 1209, className : "Main", methodName : "loadExternalResources"});
 					Main.VirtualResources.h[p[0]] = bytes;
 					loadedCount += 1;
 					if(loadedCount == toLoad.length) {
-						haxe_Log.trace("all resources loaded",{ fileName : "src/Main.hx", lineNumber : 1136, className : "Main", methodName : "loadExternalResources"});
+						haxe_Log.trace("all resources loaded",{ fileName : "src/Main.hx", lineNumber : 1213, className : "Main", methodName : "loadExternalResources"});
 						new Main();
 					}
 				} catch( _g ) {
@@ -1110,12 +1252,12 @@ Main.loadExternalResources = function() {
 		})(cur,p);
 		cur[0].onProgress = (function() {
 			return function(cur,max) {
-				haxe_Log.trace(cur / max,{ fileName : "src/Main.hx", lineNumber : 1146, className : "Main", methodName : "loadExternalResources"});
+				haxe_Log.trace(cur / max,{ fileName : "src/Main.hx", lineNumber : 1223, className : "Main", methodName : "loadExternalResources"});
 			};
 		})();
 		cur[0].onError = (function() {
 			return function(e) {
-				haxe_Log.trace(e,{ fileName : "src/Main.hx", lineNumber : 1149, className : "Main", methodName : "loadExternalResources"});
+				haxe_Log.trace(e,{ fileName : "src/Main.hx", lineNumber : 1226, className : "Main", methodName : "loadExternalResources"});
 			};
 		})();
 		cur[0].load();
@@ -1127,11 +1269,15 @@ Main.main = function() {
 };
 Main.__super__ = SampleApp;
 Main.prototype = $extend(SampleApp.prototype,{
-	RenderLevel: function(rebuildstatic) {
+	resetLastInputStuff: function() {
+		this.lastInput = -1;
+		this.lastInputSuccess = false;
+	}
+	,RenderLevel: function(rebuildstatic) {
 		var _gthis = this;
 		if(rebuildstatic) {
-			haxe_Log.trace("rebuilding static",{ fileName : "src/Main.hx", lineNumber : 82, className : "Main", methodName : "RenderLevel"});
-			haxe_Log.trace(this.editor_basegrid_interacts.length,{ fileName : "src/Main.hx", lineNumber : 83, className : "Main", methodName : "RenderLevel"});
+			haxe_Log.trace("rebuilding static",{ fileName : "src/Main.hx", lineNumber : 94, className : "Main", methodName : "RenderLevel"});
+			haxe_Log.trace(this.editor_basegrid_interacts.length,{ fileName : "src/Main.hx", lineNumber : 95, className : "Main", methodName : "RenderLevel"});
 			var _g = 0;
 			var _g1 = this.editor_basegrid_interacts.length;
 			while(_g < _g1) {
@@ -1280,7 +1426,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 					} else {
 						var floor2 = (tile.height - 6) / 2 | 0;
 						var dir2 = 2;
-						haxe_Log.trace((floor2 == null ? "null" : "" + floor2) + "_Ramp",{ fileName : "src/Main.hx", lineNumber : 137, className : "Main", methodName : "RenderLevel"});
+						haxe_Log.trace((floor2 == null ? "null" : "" + floor2) + "_Ramp",{ fileName : "src/Main.hx", lineNumber : 149, className : "Main", methodName : "RenderLevel"});
 						obj = js_Boot.__cast(this.prefabs.h[(floor2 == null ? "null" : "" + floor2) + "_Ramp"].clone() , h3d_scene_Mesh);
 						this.obs_static.addChild(obj);
 						var x3 = i * 2;
@@ -1537,6 +1683,9 @@ Main.prototype = $extend(SampleApp.prototype,{
 		return true;
 	}
 	,DoLerp: function(obj,ent) {
+		if(ent == null) {
+			return;
+		}
 		var progress = (0.15 - this.moveTimer) / 0.15;
 		progress = Math.sin(progress * Math.PI / 2);
 		var x = ent.fromx * (1 - progress) + ent.x * progress;
@@ -1700,11 +1849,12 @@ Main.prototype = $extend(SampleApp.prototype,{
 			}
 		}
 		var l_str = this.gamestate.ToString();
-		haxe_Log.trace(l_str,{ fileName : "src/Main.hx", lineNumber : 325, className : "Main", methodName : "TryPlace"});
+		haxe_Log.trace(l_str,{ fileName : "src/Main.hx", lineNumber : 340, className : "Main", methodName : "TryPlace"});
 		this.gamestate = GameState.FromString(l_str);
 		var l_str2 = this.gamestate.ToString();
-		haxe_Log.trace(l_str2,{ fileName : "src/Main.hx", lineNumber : 328, className : "Main", methodName : "TryPlace"});
-		haxe_Log.trace("IDEMPOTENCE:",{ fileName : "src/Main.hx", lineNumber : 329, className : "Main", methodName : "TryPlace", customParams : [l_str == l_str2]});
+		haxe_Log.trace(l_str2,{ fileName : "src/Main.hx", lineNumber : 343, className : "Main", methodName : "TryPlace"});
+		haxe_Log.trace("IDEMPOTENCE:",{ fileName : "src/Main.hx", lineNumber : 344, className : "Main", methodName : "TryPlace", customParams : [l_str == l_str2]});
+		haxe_Log.trace(l_str2,{ fileName : "src/Main.hx", lineNumber : 345, className : "Main", methodName : "TryPlace"});
 	}
 	,AlterAltitude: function(x,y,alt) {
 		var tile = this.gamestate.Tiles[y][x];
@@ -1782,11 +1932,11 @@ Main.prototype = $extend(SampleApp.prototype,{
 			e.y++;
 		}
 		if(e.x >= this.gamestate.Tiles[0].length) {
-			haxe_Log.trace("reducingX",{ fileName : "src/Main.hx", lineNumber : 424, className : "Main", methodName : "FitInBounds"});
+			haxe_Log.trace("reducingX",{ fileName : "src/Main.hx", lineNumber : 440, className : "Main", methodName : "FitInBounds"});
 			e.x--;
 		}
 		if(e.y >= this.gamestate.Tiles.length) {
-			haxe_Log.trace("reducingY",{ fileName : "src/Main.hx", lineNumber : 428, className : "Main", methodName : "FitInBounds"});
+			haxe_Log.trace("reducingY",{ fileName : "src/Main.hx", lineNumber : 444, className : "Main", methodName : "FitInBounds"});
 			e.y--;
 		}
 		e.fromx = e.x;
@@ -1842,7 +1992,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		}
 	}
 	,RotateLevel: function() {
-		haxe_Log.trace("rotating level",{ fileName : "src/Main.hx", lineNumber : 493, className : "Main", methodName : "RotateLevel"});
+		haxe_Log.trace("rotating level",{ fileName : "src/Main.hx", lineNumber : 509, className : "Main", methodName : "RotateLevel"});
 		var newTiles = [];
 		var old_W = this.gamestate.Tiles[0].length;
 		var old_H = this.gamestate.Tiles.length;
@@ -1871,7 +2021,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		this.RenderLevel(true);
 	}
 	,FlipLevelH: function() {
-		haxe_Log.trace("h-flipping level",{ fileName : "src/Main.hx", lineNumber : 520, className : "Main", methodName : "FlipLevelH"});
+		haxe_Log.trace("h-flipping level",{ fileName : "src/Main.hx", lineNumber : 536, className : "Main", methodName : "FlipLevelH"});
 		var _g = 0;
 		var _g1 = this.gamestate.Tiles.length;
 		while(_g < _g1) {
@@ -1892,7 +2042,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		this.RenderLevel(true);
 	}
 	,FlipLevelV: function() {
-		haxe_Log.trace("v-flipping level",{ fileName : "src/Main.hx", lineNumber : 538, className : "Main", methodName : "FlipLevelV"});
+		haxe_Log.trace("v-flipping level",{ fileName : "src/Main.hx", lineNumber : 554, className : "Main", methodName : "FlipLevelV"});
 		this.gamestate.Tiles.reverse();
 		var _g = 0;
 		var _g1 = this.gamestate.Tiles.length;
@@ -2002,8 +2152,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 				}
 			}
 		}
-		haxe_Log.trace("adjust",{ fileName : "src/Main.hx", lineNumber : 640, className : "Main", methodName : "ResizeLevel"});
-		haxe_Log.trace(this.gamestate.p.x,{ fileName : "src/Main.hx", lineNumber : 641, className : "Main", methodName : "ResizeLevel", customParams : [this.gamestate.p.y]});
+		haxe_Log.trace("adjust",{ fileName : "src/Main.hx", lineNumber : 656, className : "Main", methodName : "ResizeLevel"});
+		haxe_Log.trace(this.gamestate.p.x,{ fileName : "src/Main.hx", lineNumber : 657, className : "Main", methodName : "ResizeLevel", customParams : [this.gamestate.p.y]});
 		this.gamestate.p.x += adjust_X;
 		this.gamestate.p.y += adjust_Y;
 		this.gamestate.c1.x += adjust_X;
@@ -2012,12 +2162,12 @@ Main.prototype = $extend(SampleApp.prototype,{
 		this.gamestate.c2.y += adjust_Y;
 		this.gamestate.pillow.x += adjust_X;
 		this.gamestate.pillow.y += adjust_Y;
-		haxe_Log.trace(this.gamestate.p.x,{ fileName : "src/Main.hx", lineNumber : 651, className : "Main", methodName : "ResizeLevel", customParams : [this.gamestate.p.y]});
+		haxe_Log.trace(this.gamestate.p.x,{ fileName : "src/Main.hx", lineNumber : 667, className : "Main", methodName : "ResizeLevel", customParams : [this.gamestate.p.y]});
 		this.FitInBounds(this.gamestate.p);
 		this.FitInBounds(this.gamestate.c1);
 		this.FitInBounds(this.gamestate.c2);
 		this.FitInBounds(this.gamestate.pillow);
-		haxe_Log.trace(this.gamestate.p.x,{ fileName : "src/Main.hx", lineNumber : 657, className : "Main", methodName : "ResizeLevel", customParams : [this.gamestate.p.y]});
+		haxe_Log.trace(this.gamestate.p.x,{ fileName : "src/Main.hx", lineNumber : 673, className : "Main", methodName : "ResizeLevel", customParams : [this.gamestate.p.y]});
 		this.RenderLevel(true);
 	}
 	,EditorUpdate: function() {
@@ -2074,7 +2224,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 				this.gamestate.pillow = null;
 			} else {
 				if(this.gamestate.pillow == null) {
-					this.gamestate.pillow = new Entity(0,0,0,1,2);
+					this.gamestate.pillow = new Entity(0,0,0,2,2);
 				}
 				this.TryPlace(this.gamestate.pillow,this.editor_cursor_x,this.editor_cursor_y);
 			}
@@ -2183,6 +2333,46 @@ Main.prototype = $extend(SampleApp.prototype,{
 			_this.flags &= ~f;
 		}
 	}
+	,runTests: function() {
+		haxe_Log.trace("running " + Tests.tests.length + " tests.",{ fileName : "src/Main.hx", lineNumber : 803, className : "Main", methodName : "runTests"});
+		var failurecount = 0;
+		var _g = 0;
+		var _g1 = Tests.tests.length;
+		while(_g < _g1) {
+			var i = _g++;
+			var test = Tests.tests[i];
+			var success = test.runTest();
+			if(!success) {
+				++failurecount;
+			}
+		}
+		haxe_Log.trace("finished running tests. " + failurecount + "/" + Tests.tests.length + " failed.",{ fileName : "src/Main.hx", lineNumber : 812, className : "Main", methodName : "runTests"});
+	}
+	,dumpTestDat: function() {
+		haxe_Log.trace("Dumping test data:",{ fileName : "src/Main.hx", lineNumber : 816, className : "Main", methodName : "dumpTestDat"});
+		var out_b = "";
+		out_b += "new TestDat(";
+		out_b += Std.string("\"" + this.recording_startstate + "\",");
+		out_b += Std.string("\"" + this.recording_inputs.join("") + "\",");
+		out_b += Std.string("\"" + this.gamestate.ToStringTrace() + "\"");
+		out_b += "),\n";
+		haxe_Log.trace(out_b,{ fileName : "src/Main.hx", lineNumber : 823, className : "Main", methodName : "dumpTestDat"});
+	}
+	,TryMovePlayer: function(d) {
+		if(this.lastInputSuccess == false && d == this.lastInput) {
+			return;
+		}
+		if(this.recording_test) {
+			if(this.recording_inputs.length % 5 == 0) {
+				this.recording_inputs.push(" ");
+			}
+			this.recording_inputs.push(["N","E","S","W"][d]);
+		}
+		var success = this.tryMove(this.gamestate.p,d,true,true);
+		this.lastInputSuccess = success;
+		haxe_Log.trace("success" + (success == null ? "null" : "" + success),{ fileName : "src/Main.hx", lineNumber : 837, className : "Main", methodName : "TryMovePlayer"});
+		this.lastInput = d;
+	}
 	,update: function(dt) {
 		if(this.moveTimer >= 0) {
 			this.AnimatePositions();
@@ -2201,21 +2391,36 @@ Main.prototype = $extend(SampleApp.prototype,{
 				this.gamestate.c2.fromy = this.gamestate.c2.y;
 				this.gamestate.c2.fromaltitude = this.gamestate.c2.altitude;
 				this.gamestate.c2.fromdir = this.gamestate.c2.dir;
-				this.gamestate.pillow.fromx = this.gamestate.pillow.x;
-				this.gamestate.pillow.fromy = this.gamestate.pillow.y;
-				this.gamestate.pillow.fromaltitude = this.gamestate.pillow.altitude;
-				this.gamestate.pillow.fromdir = this.gamestate.pillow.dir;
+				if(this.gamestate.pillow != null) {
+					this.gamestate.pillow.fromx = this.gamestate.pillow.x;
+					this.gamestate.pillow.fromy = this.gamestate.pillow.y;
+					this.gamestate.pillow.fromaltitude = this.gamestate.pillow.altitude;
+					this.gamestate.pillow.fromdir = this.gamestate.pillow.dir;
+				}
 			}
 			return;
 		}
 		if(hxd_Key.isDown(37)) {
-			this.tryMove(this.gamestate.p,3,true,true);
+			this.TryMovePlayer(3);
 		} else if(hxd_Key.isDown(39)) {
-			this.tryMove(this.gamestate.p,1,true,true);
+			this.TryMovePlayer(1);
 		} else if(hxd_Key.isDown(38)) {
-			this.tryMove(this.gamestate.p,0,true,true);
+			this.TryMovePlayer(0);
 		} else if(hxd_Key.isDown(40)) {
-			this.tryMove(this.gamestate.p,2,true,true);
+			this.TryMovePlayer(2);
+		}
+		if(hxd_Key.isPressed(84)) {
+			if(hxd_Key.isDown(16)) {
+				this.runTests();
+			} else if(this.recording_test == false) {
+				this.recording_test = true;
+				this.resetLastInputStuff();
+				this.recording_inputs = [];
+				this.recording_startstate = this.gamestate.ToString();
+			} else {
+				this.recording_test = false;
+				this.dumpTestDat();
+			}
 		}
 		if(hxd_Key.isPressed(9)) {
 			this.editormode = !this.editormode;
@@ -2482,7 +2687,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 	}
 	,onBasegridButtonClick: function(i,j) {
 		this.editor_sel = i;
-		haxe_Log.trace(i,{ fileName : "src/Main.hx", lineNumber : 935, className : "Main", methodName : "onBasegridButtonClick", customParams : [j]});
+		haxe_Log.trace(i,{ fileName : "src/Main.hx", lineNumber : 1009, className : "Main", methodName : "onBasegridButtonClick", customParams : [j]});
 	}
 	,onEditorToolbarButtonClick: function(i) {
 		this.editor_sel = i;
@@ -2497,7 +2702,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		while(_g < _g1) {
 			var i = _g++;
 			var button_name = Main.editor_buttons[i];
-			haxe_Log.trace("loading ",{ fileName : "src/Main.hx", lineNumber : 951, className : "Main", methodName : "create_editor_array", customParams : [button_name]});
+			haxe_Log.trace("loading ",{ fileName : "src/Main.hx", lineNumber : 1025, className : "Main", methodName : "create_editor_array", customParams : [button_name]});
 			var obj = this.prefabs.h[button_name].clone();
 			var meshes = obj.getMeshes();
 			var _g2 = 0;
@@ -2508,8 +2713,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 				mesh.material = this.alphamat;
 			}
 			var _g4 = obj;
-			var v1 = _g4.scaleX * 0.2;
-			_g4.scaleX = v1;
+			var v = _g4.scaleX * 0.2;
+			_g4.scaleX = v;
 			var f = 1;
 			var b = true;
 			if(b) {
@@ -2518,8 +2723,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 				_g4.flags &= ~f;
 			}
 			var _g5 = obj;
-			var v11 = _g5.scaleY * 0.2;
-			_g5.scaleY = v11;
+			var v1 = _g5.scaleY * 0.2;
+			_g5.scaleY = v1;
 			var f1 = 1;
 			var b1 = true;
 			if(b1) {
@@ -2528,8 +2733,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 				_g5.flags &= ~f1;
 			}
 			var _g6 = obj;
-			var v12 = _g6.scaleZ * 0.2;
-			_g6.scaleZ = v12;
+			var v2 = _g6.scaleZ * 0.2;
+			_g6.scaleZ = v2;
 			var f2 = 1;
 			var b2 = true;
 			if(b2) {
@@ -2657,7 +2862,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		var config_bytes = Main.VirtualResources.h["config.json"];
 		var config_str = hxd_res_Any.fromBytes("config.json",config_bytes).toText();
 		this.config_dat = JSON.parse(config_str);
-		haxe_Log.trace(this.config_dat,{ fileName : "src/Main.hx", lineNumber : 1024, className : "Main", methodName : "init"});
+		haxe_Log.trace(this.config_dat,{ fileName : "src/Main.hx", lineNumber : 1098, className : "Main", methodName : "init"});
 		var mesh_bytes_fbx = Main.VirtualResources.h["blends/models.fbx"];
 		var mesh_res = this.fbxToHmd(mesh_bytes_fbx,true);
 		var mesh_model = mesh_res.toModel();
@@ -2666,7 +2871,7 @@ Main.prototype = $extend(SampleApp.prototype,{
 		var tex = tex_res.toTexture();
 		var materials = [];
 		obj.getMaterials(materials,true);
-		haxe_Log.trace("we have ",{ fileName : "src/Main.hx", lineNumber : 1038, className : "Main", methodName : "init", customParams : [materials.length," materials"]});
+		haxe_Log.trace("we have ",{ fileName : "src/Main.hx", lineNumber : 1112, className : "Main", methodName : "init", customParams : [materials.length," materials"]});
 		var _g = 0;
 		var _g1 = materials.length;
 		while(_g < _g1) {
@@ -2741,8 +2946,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 			transform._44 = v_w;
 			child.setTransform(transform);
 			var _g2 = child;
-			var v1 = _g2.scaleX;
-			_g2.scaleX = v1;
+			var v = _g2.scaleX;
+			_g2.scaleX = v;
 			var f = 1;
 			var b = true;
 			if(b) {
@@ -2751,8 +2956,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 				_g2.flags &= ~f;
 			}
 			var _g3 = child;
-			var v11 = _g3.scaleY;
-			_g3.scaleY = v11;
+			var v1 = _g3.scaleY;
+			_g3.scaleY = v1;
 			var f1 = 1;
 			var b1 = true;
 			if(b1) {
@@ -2761,8 +2966,8 @@ Main.prototype = $extend(SampleApp.prototype,{
 				_g3.flags &= ~f1;
 			}
 			var _g4 = child;
-			var v12 = _g4.scaleZ;
-			_g4.scaleZ = v12;
+			var v2 = _g4.scaleZ;
+			_g4.scaleZ = v2;
 			var f2 = 1;
 			var b2 = true;
 			if(b2) {
@@ -2777,10 +2982,12 @@ Main.prototype = $extend(SampleApp.prototype,{
 			} else {
 				child.flags &= ~f3;
 			}
-			var v = js_Boot.__cast(child , h3d_scene_Mesh);
-			this.prefabs.h[child.name] = v;
+			var v3 = js_Boot.__cast(child , h3d_scene_Mesh);
+			this.prefabs.h[child.name] = v3;
 		}
 		this.gamestate = GameState.FromString(this.levelDat);
+		this.gamestate.pillow.height = 2;
+		haxe_Log.trace("pillow height = " + this.gamestate.pillow.height,{ fileName : "src/Main.hx", lineNumber : 1165, className : "Main", methodName : "init"});
 		this.RenderLevel(true);
 		var dirs = this.config_dat.directional_light_direction;
 		var dir = new h3d_scene_fwd_DirLight(new h3d_Vector(dirs[0],dirs[1],dirs[2]),this.s3d);
@@ -3027,6 +3234,49 @@ StringTools.hex = function(n,digits) {
 	}
 	return s;
 };
+var TestDat = function(startState,inputString,endState) {
+	this.startState = startState;
+	this.inputString = inputString;
+	this.endState = endState;
+};
+$hxClasses["TestDat"] = TestDat;
+TestDat.__name__ = "TestDat";
+TestDat.prototype = {
+	runTest: function() {
+		var gamestate = GameState.FromString(this.startState);
+		var _g = 0;
+		var _g1 = this.inputString.length;
+		while(_g < _g1) {
+			var i = _g++;
+			var input_char = this.inputString.charAt(i);
+			if(input_char == " ") {
+				continue;
+			}
+			var input = ["N","E","S","W"].indexOf(input_char);
+			gamestate.tryMove(gamestate.p,input,true,true);
+		}
+		var calculated_endState = gamestate.ToStringTrace();
+		var success = calculated_endState == this.endState;
+		if(success == false) {
+			var endmessage = "";
+			endmessage += "FAILED TEST\n";
+			endmessage += "LEVELDAT\n";
+			endmessage += this.startState + "\n";
+			endmessage += "INPUT\n";
+			haxe_Log.trace(this.inputString,{ fileName : "src/Tests.hx", lineNumber : 35, className : "TestDat", methodName : "runTest"});
+			endmessage += "EXPECTED ENDSTATE\n";
+			endmessage += this.endState + "\n";
+			endmessage += "CALCULATED ENDSTATE\n";
+			endmessage += calculated_endState;
+			haxe_Log.trace(endmessage,{ fileName : "src/Tests.hx", lineNumber : 40, className : "TestDat", methodName : "runTest"});
+		}
+		return success;
+	}
+	,__class__: TestDat
+};
+var Tests = function() { };
+$hxClasses["Tests"] = Tests;
+Tests.__name__ = "Tests";
 var ValueType = $hxEnums["ValueType"] = { __ename__ : "ValueType", __constructs__ : ["TNull","TInt","TFloat","TBool","TObject","TFunction","TClass","TEnum","TUnknown"]
 	,TNull: {_hx_index:0,__enum__:"ValueType",toString:$estr}
 	,TInt: {_hx_index:1,__enum__:"ValueType",toString:$estr}
@@ -7573,17 +7823,17 @@ h2d_Object.prototype = {
 			view.yMax = y1;
 		}
 		var a = bounds.xMin;
-		var b1 = view.xMin;
-		bounds.xMin = a < b1 ? b1 : a;
+		var b = view.xMin;
+		bounds.xMin = a < b ? b : a;
 		var a = bounds.yMin;
-		var b1 = view.yMin;
-		bounds.yMin = a < b1 ? b1 : a;
+		var b = view.yMin;
+		bounds.yMin = a < b ? b : a;
 		var a = bounds.xMax;
-		var b1 = view.xMax;
-		bounds.xMax = a > b1 ? b1 : a;
+		var b = view.xMax;
+		bounds.xMax = a > b ? b : a;
 		var a = bounds.yMax;
-		var b1 = view.yMax;
-		bounds.yMax = a > b1 ? b1 : a;
+		var b = view.yMax;
+		bounds.yMax = a > b ? b : a;
 	}
 	,drawFilters: function(ctx) {
 		if(!ctx.pushFilter(this)) {
@@ -10531,83 +10781,83 @@ h2d_Graphics.prototype = $extend(h2d_Drawable.prototype,{
 					this1.array = newArray;
 				}
 				this1.array[this1.pos++] = x;
-				var this11 = _this.tmp;
-				if(this11.pos == this11.array.length) {
-					var newSize1 = this11.array.length << 1;
+				var this2 = _this.tmp;
+				if(this2.pos == this2.array.length) {
+					var newSize1 = this2.array.length << 1;
 					if(newSize1 < 128) {
 						newSize1 = 128;
 					}
 					var newArray1 = new Float32Array(newSize1);
-					newArray1.set(this11.array);
-					this11.array = newArray1;
+					newArray1.set(this2.array);
+					this2.array = newArray1;
 				}
-				this11.array[this11.pos++] = y;
-				var this12 = _this.tmp;
-				if(this12.pos == this12.array.length) {
-					var newSize2 = this12.array.length << 1;
+				this2.array[this2.pos++] = y;
+				var this3 = _this.tmp;
+				if(this3.pos == this3.array.length) {
+					var newSize2 = this3.array.length << 1;
 					if(newSize2 < 128) {
 						newSize2 = 128;
 					}
 					var newArray2 = new Float32Array(newSize2);
-					newArray2.set(this12.array);
-					this12.array = newArray2;
+					newArray2.set(this3.array);
+					this3.array = newArray2;
 				}
-				this12.array[this12.pos++] = 0;
-				var this13 = _this.tmp;
-				if(this13.pos == this13.array.length) {
-					var newSize3 = this13.array.length << 1;
+				this3.array[this3.pos++] = 0;
+				var this4 = _this.tmp;
+				if(this4.pos == this4.array.length) {
+					var newSize3 = this4.array.length << 1;
 					if(newSize3 < 128) {
 						newSize3 = 128;
 					}
 					var newArray3 = new Float32Array(newSize3);
-					newArray3.set(this13.array);
-					this13.array = newArray3;
+					newArray3.set(this4.array);
+					this4.array = newArray3;
 				}
-				this13.array[this13.pos++] = 0;
-				var this14 = _this.tmp;
-				if(this14.pos == this14.array.length) {
-					var newSize4 = this14.array.length << 1;
+				this4.array[this4.pos++] = 0;
+				var this5 = _this.tmp;
+				if(this5.pos == this5.array.length) {
+					var newSize4 = this5.array.length << 1;
 					if(newSize4 < 128) {
 						newSize4 = 128;
 					}
 					var newArray4 = new Float32Array(newSize4);
-					newArray4.set(this14.array);
-					this14.array = newArray4;
+					newArray4.set(this5.array);
+					this5.array = newArray4;
 				}
-				this14.array[this14.pos++] = r;
-				var this15 = _this.tmp;
-				if(this15.pos == this15.array.length) {
-					var newSize5 = this15.array.length << 1;
+				this5.array[this5.pos++] = r;
+				var this6 = _this.tmp;
+				if(this6.pos == this6.array.length) {
+					var newSize5 = this6.array.length << 1;
 					if(newSize5 < 128) {
 						newSize5 = 128;
 					}
 					var newArray5 = new Float32Array(newSize5);
-					newArray5.set(this15.array);
-					this15.array = newArray5;
+					newArray5.set(this6.array);
+					this6.array = newArray5;
 				}
-				this15.array[this15.pos++] = g;
-				var this16 = _this.tmp;
-				if(this16.pos == this16.array.length) {
-					var newSize6 = this16.array.length << 1;
+				this6.array[this6.pos++] = g;
+				var this7 = _this.tmp;
+				if(this7.pos == this7.array.length) {
+					var newSize6 = this7.array.length << 1;
 					if(newSize6 < 128) {
 						newSize6 = 128;
 					}
 					var newArray6 = new Float32Array(newSize6);
-					newArray6.set(this16.array);
-					this16.array = newArray6;
+					newArray6.set(this7.array);
+					this7.array = newArray6;
 				}
-				this16.array[this16.pos++] = b;
-				var this17 = _this.tmp;
-				if(this17.pos == this17.array.length) {
-					var newSize7 = this17.array.length << 1;
+				this7.array[this7.pos++] = b;
+				var this8 = _this.tmp;
+				if(this8.pos == this8.array.length) {
+					var newSize7 = this8.array.length << 1;
 					if(newSize7 < 128) {
 						newSize7 = 128;
 					}
 					var newArray7 = new Float32Array(newSize7);
-					newArray7.set(this17.array);
-					this17.array = newArray7;
+					newArray7.set(this8.array);
+					this8.array = newArray7;
 				}
-				this17.array[this17.pos++] = a;
+				this8.array[this8.pos++] = a;
 				_this.bufferDirty = true;
 				var _this1 = this.content;
 				var x1 = p.x - nx;
@@ -10616,94 +10866,94 @@ h2d_Graphics.prototype = $extend(h2d_Drawable.prototype,{
 				var g1 = p.g;
 				var b1 = p.b;
 				var a1 = p.a;
-				var this18 = _this1.tmp;
-				if(this18.pos == this18.array.length) {
-					var newSize8 = this18.array.length << 1;
+				var this9 = _this1.tmp;
+				if(this9.pos == this9.array.length) {
+					var newSize8 = this9.array.length << 1;
 					if(newSize8 < 128) {
 						newSize8 = 128;
 					}
 					var newArray8 = new Float32Array(newSize8);
-					newArray8.set(this18.array);
-					this18.array = newArray8;
+					newArray8.set(this9.array);
+					this9.array = newArray8;
 				}
-				this18.array[this18.pos++] = x1;
-				var this19 = _this1.tmp;
-				if(this19.pos == this19.array.length) {
-					var newSize9 = this19.array.length << 1;
+				this9.array[this9.pos++] = x1;
+				var this10 = _this1.tmp;
+				if(this10.pos == this10.array.length) {
+					var newSize9 = this10.array.length << 1;
 					if(newSize9 < 128) {
 						newSize9 = 128;
 					}
 					var newArray9 = new Float32Array(newSize9);
-					newArray9.set(this19.array);
-					this19.array = newArray9;
+					newArray9.set(this10.array);
+					this10.array = newArray9;
 				}
-				this19.array[this19.pos++] = y1;
-				var this110 = _this1.tmp;
-				if(this110.pos == this110.array.length) {
-					var newSize10 = this110.array.length << 1;
+				this10.array[this10.pos++] = y1;
+				var this11 = _this1.tmp;
+				if(this11.pos == this11.array.length) {
+					var newSize10 = this11.array.length << 1;
 					if(newSize10 < 128) {
 						newSize10 = 128;
 					}
 					var newArray10 = new Float32Array(newSize10);
-					newArray10.set(this110.array);
-					this110.array = newArray10;
+					newArray10.set(this11.array);
+					this11.array = newArray10;
 				}
-				this110.array[this110.pos++] = 0;
-				var this111 = _this1.tmp;
-				if(this111.pos == this111.array.length) {
-					var newSize11 = this111.array.length << 1;
+				this11.array[this11.pos++] = 0;
+				var this12 = _this1.tmp;
+				if(this12.pos == this12.array.length) {
+					var newSize11 = this12.array.length << 1;
 					if(newSize11 < 128) {
 						newSize11 = 128;
 					}
 					var newArray11 = new Float32Array(newSize11);
-					newArray11.set(this111.array);
-					this111.array = newArray11;
+					newArray11.set(this12.array);
+					this12.array = newArray11;
 				}
-				this111.array[this111.pos++] = 0;
-				var this112 = _this1.tmp;
-				if(this112.pos == this112.array.length) {
-					var newSize12 = this112.array.length << 1;
+				this12.array[this12.pos++] = 0;
+				var this13 = _this1.tmp;
+				if(this13.pos == this13.array.length) {
+					var newSize12 = this13.array.length << 1;
 					if(newSize12 < 128) {
 						newSize12 = 128;
 					}
 					var newArray12 = new Float32Array(newSize12);
-					newArray12.set(this112.array);
-					this112.array = newArray12;
+					newArray12.set(this13.array);
+					this13.array = newArray12;
 				}
-				this112.array[this112.pos++] = r1;
-				var this113 = _this1.tmp;
-				if(this113.pos == this113.array.length) {
-					var newSize13 = this113.array.length << 1;
+				this13.array[this13.pos++] = r1;
+				var this14 = _this1.tmp;
+				if(this14.pos == this14.array.length) {
+					var newSize13 = this14.array.length << 1;
 					if(newSize13 < 128) {
 						newSize13 = 128;
 					}
 					var newArray13 = new Float32Array(newSize13);
-					newArray13.set(this113.array);
-					this113.array = newArray13;
+					newArray13.set(this14.array);
+					this14.array = newArray13;
 				}
-				this113.array[this113.pos++] = g1;
-				var this114 = _this1.tmp;
-				if(this114.pos == this114.array.length) {
-					var newSize14 = this114.array.length << 1;
+				this14.array[this14.pos++] = g1;
+				var this15 = _this1.tmp;
+				if(this15.pos == this15.array.length) {
+					var newSize14 = this15.array.length << 1;
 					if(newSize14 < 128) {
 						newSize14 = 128;
 					}
 					var newArray14 = new Float32Array(newSize14);
-					newArray14.set(this114.array);
-					this114.array = newArray14;
+					newArray14.set(this15.array);
+					this15.array = newArray14;
 				}
-				this114.array[this114.pos++] = b1;
-				var this115 = _this1.tmp;
-				if(this115.pos == this115.array.length) {
-					var newSize15 = this115.array.length << 1;
+				this15.array[this15.pos++] = b1;
+				var this16 = _this1.tmp;
+				if(this16.pos == this16.array.length) {
+					var newSize15 = this16.array.length << 1;
 					if(newSize15 < 128) {
 						newSize15 = 128;
 					}
 					var newArray15 = new Float32Array(newSize15);
-					newArray15.set(this115.array);
-					this115.array = newArray15;
+					newArray15.set(this16.array);
+					this16.array = newArray15;
 				}
-				this115.array[this115.pos++] = a1;
+				this16.array[this16.pos++] = a1;
 				_this1.bufferDirty = true;
 				var pnext = i == last ? start : this.pindex + 2;
 				if(i < count - 1 || closed) {
@@ -10746,94 +10996,94 @@ h2d_Graphics.prototype = $extend(h2d_Drawable.prototype,{
 					var g2 = p.g;
 					var b2 = p.b;
 					var a2 = p.a;
-					var this116 = _this8.tmp;
-					if(this116.pos == this116.array.length) {
-						var newSize16 = this116.array.length << 1;
+					var this17 = _this8.tmp;
+					if(this17.pos == this17.array.length) {
+						var newSize16 = this17.array.length << 1;
 						if(newSize16 < 128) {
 							newSize16 = 128;
 						}
 						var newArray16 = new Float32Array(newSize16);
-						newArray16.set(this116.array);
-						this116.array = newArray16;
+						newArray16.set(this17.array);
+						this17.array = newArray16;
 					}
-					this116.array[this116.pos++] = x2;
-					var this117 = _this8.tmp;
-					if(this117.pos == this117.array.length) {
-						var newSize17 = this117.array.length << 1;
+					this17.array[this17.pos++] = x2;
+					var this18 = _this8.tmp;
+					if(this18.pos == this18.array.length) {
+						var newSize17 = this18.array.length << 1;
 						if(newSize17 < 128) {
 							newSize17 = 128;
 						}
 						var newArray17 = new Float32Array(newSize17);
-						newArray17.set(this117.array);
-						this117.array = newArray17;
+						newArray17.set(this18.array);
+						this18.array = newArray17;
 					}
-					this117.array[this117.pos++] = y2;
-					var this118 = _this8.tmp;
-					if(this118.pos == this118.array.length) {
-						var newSize18 = this118.array.length << 1;
+					this18.array[this18.pos++] = y2;
+					var this19 = _this8.tmp;
+					if(this19.pos == this19.array.length) {
+						var newSize18 = this19.array.length << 1;
 						if(newSize18 < 128) {
 							newSize18 = 128;
 						}
 						var newArray18 = new Float32Array(newSize18);
-						newArray18.set(this118.array);
-						this118.array = newArray18;
+						newArray18.set(this19.array);
+						this19.array = newArray18;
 					}
-					this118.array[this118.pos++] = 0;
-					var this119 = _this8.tmp;
-					if(this119.pos == this119.array.length) {
-						var newSize19 = this119.array.length << 1;
+					this19.array[this19.pos++] = 0;
+					var this20 = _this8.tmp;
+					if(this20.pos == this20.array.length) {
+						var newSize19 = this20.array.length << 1;
 						if(newSize19 < 128) {
 							newSize19 = 128;
 						}
 						var newArray19 = new Float32Array(newSize19);
-						newArray19.set(this119.array);
-						this119.array = newArray19;
+						newArray19.set(this20.array);
+						this20.array = newArray19;
 					}
-					this119.array[this119.pos++] = 0;
-					var this120 = _this8.tmp;
-					if(this120.pos == this120.array.length) {
-						var newSize20 = this120.array.length << 1;
+					this20.array[this20.pos++] = 0;
+					var this21 = _this8.tmp;
+					if(this21.pos == this21.array.length) {
+						var newSize20 = this21.array.length << 1;
 						if(newSize20 < 128) {
 							newSize20 = 128;
 						}
 						var newArray20 = new Float32Array(newSize20);
-						newArray20.set(this120.array);
-						this120.array = newArray20;
+						newArray20.set(this21.array);
+						this21.array = newArray20;
 					}
-					this120.array[this120.pos++] = r2;
-					var this121 = _this8.tmp;
-					if(this121.pos == this121.array.length) {
-						var newSize21 = this121.array.length << 1;
+					this21.array[this21.pos++] = r2;
+					var this22 = _this8.tmp;
+					if(this22.pos == this22.array.length) {
+						var newSize21 = this22.array.length << 1;
 						if(newSize21 < 128) {
 							newSize21 = 128;
 						}
 						var newArray21 = new Float32Array(newSize21);
-						newArray21.set(this121.array);
-						this121.array = newArray21;
+						newArray21.set(this22.array);
+						this22.array = newArray21;
 					}
-					this121.array[this121.pos++] = g2;
-					var this122 = _this8.tmp;
-					if(this122.pos == this122.array.length) {
-						var newSize22 = this122.array.length << 1;
+					this22.array[this22.pos++] = g2;
+					var this23 = _this8.tmp;
+					if(this23.pos == this23.array.length) {
+						var newSize22 = this23.array.length << 1;
 						if(newSize22 < 128) {
 							newSize22 = 128;
 						}
 						var newArray22 = new Float32Array(newSize22);
-						newArray22.set(this122.array);
-						this122.array = newArray22;
+						newArray22.set(this23.array);
+						this23.array = newArray22;
 					}
-					this122.array[this122.pos++] = b2;
-					var this123 = _this8.tmp;
-					if(this123.pos == this123.array.length) {
-						var newSize23 = this123.array.length << 1;
+					this23.array[this23.pos++] = b2;
+					var this24 = _this8.tmp;
+					if(this24.pos == this24.array.length) {
+						var newSize23 = this24.array.length << 1;
 						if(newSize23 < 128) {
 							newSize23 = 128;
 						}
 						var newArray23 = new Float32Array(newSize23);
-						newArray23.set(this123.array);
-						this123.array = newArray23;
+						newArray23.set(this24.array);
+						this24.array = newArray23;
 					}
-					this123.array[this123.pos++] = a2;
+					this24.array[this24.pos++] = a2;
 					_this8.bufferDirty = true;
 					var _this9 = this.content;
 					var x3 = p.x - nnx;
@@ -10842,94 +11092,94 @@ h2d_Graphics.prototype = $extend(h2d_Drawable.prototype,{
 					var g3 = p.g;
 					var b3 = p.b;
 					var a3 = p.a;
-					var this124 = _this9.tmp;
-					if(this124.pos == this124.array.length) {
-						var newSize24 = this124.array.length << 1;
+					var this25 = _this9.tmp;
+					if(this25.pos == this25.array.length) {
+						var newSize24 = this25.array.length << 1;
 						if(newSize24 < 128) {
 							newSize24 = 128;
 						}
 						var newArray24 = new Float32Array(newSize24);
-						newArray24.set(this124.array);
-						this124.array = newArray24;
+						newArray24.set(this25.array);
+						this25.array = newArray24;
 					}
-					this124.array[this124.pos++] = x3;
-					var this125 = _this9.tmp;
-					if(this125.pos == this125.array.length) {
-						var newSize25 = this125.array.length << 1;
+					this25.array[this25.pos++] = x3;
+					var this26 = _this9.tmp;
+					if(this26.pos == this26.array.length) {
+						var newSize25 = this26.array.length << 1;
 						if(newSize25 < 128) {
 							newSize25 = 128;
 						}
 						var newArray25 = new Float32Array(newSize25);
-						newArray25.set(this125.array);
-						this125.array = newArray25;
+						newArray25.set(this26.array);
+						this26.array = newArray25;
 					}
-					this125.array[this125.pos++] = y3;
-					var this126 = _this9.tmp;
-					if(this126.pos == this126.array.length) {
-						var newSize26 = this126.array.length << 1;
+					this26.array[this26.pos++] = y3;
+					var this27 = _this9.tmp;
+					if(this27.pos == this27.array.length) {
+						var newSize26 = this27.array.length << 1;
 						if(newSize26 < 128) {
 							newSize26 = 128;
 						}
 						var newArray26 = new Float32Array(newSize26);
-						newArray26.set(this126.array);
-						this126.array = newArray26;
+						newArray26.set(this27.array);
+						this27.array = newArray26;
 					}
-					this126.array[this126.pos++] = 0;
-					var this127 = _this9.tmp;
-					if(this127.pos == this127.array.length) {
-						var newSize27 = this127.array.length << 1;
+					this27.array[this27.pos++] = 0;
+					var this28 = _this9.tmp;
+					if(this28.pos == this28.array.length) {
+						var newSize27 = this28.array.length << 1;
 						if(newSize27 < 128) {
 							newSize27 = 128;
 						}
 						var newArray27 = new Float32Array(newSize27);
-						newArray27.set(this127.array);
-						this127.array = newArray27;
+						newArray27.set(this28.array);
+						this28.array = newArray27;
 					}
-					this127.array[this127.pos++] = 0;
-					var this128 = _this9.tmp;
-					if(this128.pos == this128.array.length) {
-						var newSize28 = this128.array.length << 1;
+					this28.array[this28.pos++] = 0;
+					var this29 = _this9.tmp;
+					if(this29.pos == this29.array.length) {
+						var newSize28 = this29.array.length << 1;
 						if(newSize28 < 128) {
 							newSize28 = 128;
 						}
 						var newArray28 = new Float32Array(newSize28);
-						newArray28.set(this128.array);
-						this128.array = newArray28;
+						newArray28.set(this29.array);
+						this29.array = newArray28;
 					}
-					this128.array[this128.pos++] = r3;
-					var this129 = _this9.tmp;
-					if(this129.pos == this129.array.length) {
-						var newSize29 = this129.array.length << 1;
+					this29.array[this29.pos++] = r3;
+					var this30 = _this9.tmp;
+					if(this30.pos == this30.array.length) {
+						var newSize29 = this30.array.length << 1;
 						if(newSize29 < 128) {
 							newSize29 = 128;
 						}
 						var newArray29 = new Float32Array(newSize29);
-						newArray29.set(this129.array);
-						this129.array = newArray29;
+						newArray29.set(this30.array);
+						this30.array = newArray29;
 					}
-					this129.array[this129.pos++] = g3;
-					var this130 = _this9.tmp;
-					if(this130.pos == this130.array.length) {
-						var newSize30 = this130.array.length << 1;
+					this30.array[this30.pos++] = g3;
+					var this31 = _this9.tmp;
+					if(this31.pos == this31.array.length) {
+						var newSize30 = this31.array.length << 1;
 						if(newSize30 < 128) {
 							newSize30 = 128;
 						}
 						var newArray30 = new Float32Array(newSize30);
-						newArray30.set(this130.array);
-						this130.array = newArray30;
+						newArray30.set(this31.array);
+						this31.array = newArray30;
 					}
-					this130.array[this130.pos++] = b3;
-					var this131 = _this9.tmp;
-					if(this131.pos == this131.array.length) {
-						var newSize31 = this131.array.length << 1;
+					this31.array[this31.pos++] = b3;
+					var this32 = _this9.tmp;
+					if(this32.pos == this32.array.length) {
+						var newSize31 = this32.array.length << 1;
 						if(newSize31 < 128) {
 							newSize31 = 128;
 						}
 						var newArray31 = new Float32Array(newSize31);
-						newArray31.set(this131.array);
-						this131.array = newArray31;
+						newArray31.set(this32.array);
+						this32.array = newArray31;
 					}
-					this131.array[this131.pos++] = a3;
+					this32.array[this32.pos++] = a3;
 					_this9.bufferDirty = true;
 					var _this10 = this.content;
 					var x4 = p.x + nnx;
@@ -10938,94 +11188,94 @@ h2d_Graphics.prototype = $extend(h2d_Drawable.prototype,{
 					var g4 = p.g;
 					var b4 = p.b;
 					var a4 = p.a;
-					var this132 = _this10.tmp;
-					if(this132.pos == this132.array.length) {
-						var newSize32 = this132.array.length << 1;
+					var this33 = _this10.tmp;
+					if(this33.pos == this33.array.length) {
+						var newSize32 = this33.array.length << 1;
 						if(newSize32 < 128) {
 							newSize32 = 128;
 						}
 						var newArray32 = new Float32Array(newSize32);
-						newArray32.set(this132.array);
-						this132.array = newArray32;
+						newArray32.set(this33.array);
+						this33.array = newArray32;
 					}
-					this132.array[this132.pos++] = x4;
-					var this133 = _this10.tmp;
-					if(this133.pos == this133.array.length) {
-						var newSize33 = this133.array.length << 1;
+					this33.array[this33.pos++] = x4;
+					var this34 = _this10.tmp;
+					if(this34.pos == this34.array.length) {
+						var newSize33 = this34.array.length << 1;
 						if(newSize33 < 128) {
 							newSize33 = 128;
 						}
 						var newArray33 = new Float32Array(newSize33);
-						newArray33.set(this133.array);
-						this133.array = newArray33;
+						newArray33.set(this34.array);
+						this34.array = newArray33;
 					}
-					this133.array[this133.pos++] = y4;
-					var this134 = _this10.tmp;
-					if(this134.pos == this134.array.length) {
-						var newSize34 = this134.array.length << 1;
+					this34.array[this34.pos++] = y4;
+					var this35 = _this10.tmp;
+					if(this35.pos == this35.array.length) {
+						var newSize34 = this35.array.length << 1;
 						if(newSize34 < 128) {
 							newSize34 = 128;
 						}
 						var newArray34 = new Float32Array(newSize34);
-						newArray34.set(this134.array);
-						this134.array = newArray34;
+						newArray34.set(this35.array);
+						this35.array = newArray34;
 					}
-					this134.array[this134.pos++] = 0;
-					var this135 = _this10.tmp;
-					if(this135.pos == this135.array.length) {
-						var newSize35 = this135.array.length << 1;
+					this35.array[this35.pos++] = 0;
+					var this36 = _this10.tmp;
+					if(this36.pos == this36.array.length) {
+						var newSize35 = this36.array.length << 1;
 						if(newSize35 < 128) {
 							newSize35 = 128;
 						}
 						var newArray35 = new Float32Array(newSize35);
-						newArray35.set(this135.array);
-						this135.array = newArray35;
+						newArray35.set(this36.array);
+						this36.array = newArray35;
 					}
-					this135.array[this135.pos++] = 0;
-					var this136 = _this10.tmp;
-					if(this136.pos == this136.array.length) {
-						var newSize36 = this136.array.length << 1;
+					this36.array[this36.pos++] = 0;
+					var this37 = _this10.tmp;
+					if(this37.pos == this37.array.length) {
+						var newSize36 = this37.array.length << 1;
 						if(newSize36 < 128) {
 							newSize36 = 128;
 						}
 						var newArray36 = new Float32Array(newSize36);
-						newArray36.set(this136.array);
-						this136.array = newArray36;
+						newArray36.set(this37.array);
+						this37.array = newArray36;
 					}
-					this136.array[this136.pos++] = r4;
-					var this137 = _this10.tmp;
-					if(this137.pos == this137.array.length) {
-						var newSize37 = this137.array.length << 1;
+					this37.array[this37.pos++] = r4;
+					var this38 = _this10.tmp;
+					if(this38.pos == this38.array.length) {
+						var newSize37 = this38.array.length << 1;
 						if(newSize37 < 128) {
 							newSize37 = 128;
 						}
 						var newArray37 = new Float32Array(newSize37);
-						newArray37.set(this137.array);
-						this137.array = newArray37;
+						newArray37.set(this38.array);
+						this38.array = newArray37;
 					}
-					this137.array[this137.pos++] = g4;
-					var this138 = _this10.tmp;
-					if(this138.pos == this138.array.length) {
-						var newSize38 = this138.array.length << 1;
+					this38.array[this38.pos++] = g4;
+					var this39 = _this10.tmp;
+					if(this39.pos == this39.array.length) {
+						var newSize38 = this39.array.length << 1;
 						if(newSize38 < 128) {
 							newSize38 = 128;
 						}
 						var newArray38 = new Float32Array(newSize38);
-						newArray38.set(this138.array);
-						this138.array = newArray38;
+						newArray38.set(this39.array);
+						this39.array = newArray38;
 					}
-					this138.array[this138.pos++] = b4;
-					var this139 = _this10.tmp;
-					if(this139.pos == this139.array.length) {
-						var newSize39 = this139.array.length << 1;
+					this39.array[this39.pos++] = b4;
+					var this40 = _this10.tmp;
+					if(this40.pos == this40.array.length) {
+						var newSize39 = this40.array.length << 1;
 						if(newSize39 < 128) {
 							newSize39 = 128;
 						}
 						var newArray39 = new Float32Array(newSize39);
-						newArray39.set(this139.array);
-						this139.array = newArray39;
+						newArray39.set(this40.array);
+						this40.array = newArray39;
 					}
-					this139.array[this139.pos++] = a4;
+					this40.array[this40.pos++] = a4;
 					_this10.bufferDirty = true;
 					var _this11 = this.content;
 					_this11.index.push(this.pindex);
@@ -11053,94 +11303,94 @@ h2d_Graphics.prototype = $extend(h2d_Drawable.prototype,{
 					var g5 = p.g;
 					var b5 = p.b;
 					var a5 = p.a;
-					var this140 = _this17.tmp;
-					if(this140.pos == this140.array.length) {
-						var newSize40 = this140.array.length << 1;
+					var this41 = _this17.tmp;
+					if(this41.pos == this41.array.length) {
+						var newSize40 = this41.array.length << 1;
 						if(newSize40 < 128) {
 							newSize40 = 128;
 						}
 						var newArray40 = new Float32Array(newSize40);
-						newArray40.set(this140.array);
-						this140.array = newArray40;
+						newArray40.set(this41.array);
+						this41.array = newArray40;
 					}
-					this140.array[this140.pos++] = x5;
-					var this141 = _this17.tmp;
-					if(this141.pos == this141.array.length) {
-						var newSize41 = this141.array.length << 1;
+					this41.array[this41.pos++] = x5;
+					var this42 = _this17.tmp;
+					if(this42.pos == this42.array.length) {
+						var newSize41 = this42.array.length << 1;
 						if(newSize41 < 128) {
 							newSize41 = 128;
 						}
 						var newArray41 = new Float32Array(newSize41);
-						newArray41.set(this141.array);
-						this141.array = newArray41;
+						newArray41.set(this42.array);
+						this42.array = newArray41;
 					}
-					this141.array[this141.pos++] = y5;
-					var this142 = _this17.tmp;
-					if(this142.pos == this142.array.length) {
-						var newSize42 = this142.array.length << 1;
+					this42.array[this42.pos++] = y5;
+					var this43 = _this17.tmp;
+					if(this43.pos == this43.array.length) {
+						var newSize42 = this43.array.length << 1;
 						if(newSize42 < 128) {
 							newSize42 = 128;
 						}
 						var newArray42 = new Float32Array(newSize42);
-						newArray42.set(this142.array);
-						this142.array = newArray42;
+						newArray42.set(this43.array);
+						this43.array = newArray42;
 					}
-					this142.array[this142.pos++] = 0;
-					var this143 = _this17.tmp;
-					if(this143.pos == this143.array.length) {
-						var newSize43 = this143.array.length << 1;
+					this43.array[this43.pos++] = 0;
+					var this44 = _this17.tmp;
+					if(this44.pos == this44.array.length) {
+						var newSize43 = this44.array.length << 1;
 						if(newSize43 < 128) {
 							newSize43 = 128;
 						}
 						var newArray43 = new Float32Array(newSize43);
-						newArray43.set(this143.array);
-						this143.array = newArray43;
+						newArray43.set(this44.array);
+						this44.array = newArray43;
 					}
-					this143.array[this143.pos++] = 0;
-					var this144 = _this17.tmp;
-					if(this144.pos == this144.array.length) {
-						var newSize44 = this144.array.length << 1;
+					this44.array[this44.pos++] = 0;
+					var this45 = _this17.tmp;
+					if(this45.pos == this45.array.length) {
+						var newSize44 = this45.array.length << 1;
 						if(newSize44 < 128) {
 							newSize44 = 128;
 						}
 						var newArray44 = new Float32Array(newSize44);
-						newArray44.set(this144.array);
-						this144.array = newArray44;
+						newArray44.set(this45.array);
+						this45.array = newArray44;
 					}
-					this144.array[this144.pos++] = r5;
-					var this145 = _this17.tmp;
-					if(this145.pos == this145.array.length) {
-						var newSize45 = this145.array.length << 1;
+					this45.array[this45.pos++] = r5;
+					var this46 = _this17.tmp;
+					if(this46.pos == this46.array.length) {
+						var newSize45 = this46.array.length << 1;
 						if(newSize45 < 128) {
 							newSize45 = 128;
 						}
 						var newArray45 = new Float32Array(newSize45);
-						newArray45.set(this145.array);
-						this145.array = newArray45;
+						newArray45.set(this46.array);
+						this46.array = newArray45;
 					}
-					this145.array[this145.pos++] = g5;
-					var this146 = _this17.tmp;
-					if(this146.pos == this146.array.length) {
-						var newSize46 = this146.array.length << 1;
+					this46.array[this46.pos++] = g5;
+					var this47 = _this17.tmp;
+					if(this47.pos == this47.array.length) {
+						var newSize46 = this47.array.length << 1;
 						if(newSize46 < 128) {
 							newSize46 = 128;
 						}
 						var newArray46 = new Float32Array(newSize46);
-						newArray46.set(this146.array);
-						this146.array = newArray46;
+						newArray46.set(this47.array);
+						this47.array = newArray46;
 					}
-					this146.array[this146.pos++] = b5;
-					var this147 = _this17.tmp;
-					if(this147.pos == this147.array.length) {
-						var newSize47 = this147.array.length << 1;
+					this47.array[this47.pos++] = b5;
+					var this48 = _this17.tmp;
+					if(this48.pos == this48.array.length) {
+						var newSize47 = this48.array.length << 1;
 						if(newSize47 < 128) {
 							newSize47 = 128;
 						}
 						var newArray47 = new Float32Array(newSize47);
-						newArray47.set(this147.array);
-						this147.array = newArray47;
+						newArray47.set(this48.array);
+						this48.array = newArray47;
 					}
-					this147.array[this147.pos++] = a5;
+					this48.array[this48.pos++] = a5;
 					_this17.bufferDirty = true;
 					var _this18 = this.content;
 					var x6 = p.x - nx;
@@ -11149,94 +11399,94 @@ h2d_Graphics.prototype = $extend(h2d_Drawable.prototype,{
 					var g6 = p.g;
 					var b6 = p.b;
 					var a6 = p.a;
-					var this148 = _this18.tmp;
-					if(this148.pos == this148.array.length) {
-						var newSize48 = this148.array.length << 1;
+					var this49 = _this18.tmp;
+					if(this49.pos == this49.array.length) {
+						var newSize48 = this49.array.length << 1;
 						if(newSize48 < 128) {
 							newSize48 = 128;
 						}
 						var newArray48 = new Float32Array(newSize48);
-						newArray48.set(this148.array);
-						this148.array = newArray48;
+						newArray48.set(this49.array);
+						this49.array = newArray48;
 					}
-					this148.array[this148.pos++] = x6;
-					var this149 = _this18.tmp;
-					if(this149.pos == this149.array.length) {
-						var newSize49 = this149.array.length << 1;
+					this49.array[this49.pos++] = x6;
+					var this50 = _this18.tmp;
+					if(this50.pos == this50.array.length) {
+						var newSize49 = this50.array.length << 1;
 						if(newSize49 < 128) {
 							newSize49 = 128;
 						}
 						var newArray49 = new Float32Array(newSize49);
-						newArray49.set(this149.array);
-						this149.array = newArray49;
+						newArray49.set(this50.array);
+						this50.array = newArray49;
 					}
-					this149.array[this149.pos++] = y6;
-					var this150 = _this18.tmp;
-					if(this150.pos == this150.array.length) {
-						var newSize50 = this150.array.length << 1;
+					this50.array[this50.pos++] = y6;
+					var this51 = _this18.tmp;
+					if(this51.pos == this51.array.length) {
+						var newSize50 = this51.array.length << 1;
 						if(newSize50 < 128) {
 							newSize50 = 128;
 						}
 						var newArray50 = new Float32Array(newSize50);
-						newArray50.set(this150.array);
-						this150.array = newArray50;
+						newArray50.set(this51.array);
+						this51.array = newArray50;
 					}
-					this150.array[this150.pos++] = 0;
-					var this151 = _this18.tmp;
-					if(this151.pos == this151.array.length) {
-						var newSize51 = this151.array.length << 1;
+					this51.array[this51.pos++] = 0;
+					var this52 = _this18.tmp;
+					if(this52.pos == this52.array.length) {
+						var newSize51 = this52.array.length << 1;
 						if(newSize51 < 128) {
 							newSize51 = 128;
 						}
 						var newArray51 = new Float32Array(newSize51);
-						newArray51.set(this151.array);
-						this151.array = newArray51;
+						newArray51.set(this52.array);
+						this52.array = newArray51;
 					}
-					this151.array[this151.pos++] = 0;
-					var this152 = _this18.tmp;
-					if(this152.pos == this152.array.length) {
-						var newSize52 = this152.array.length << 1;
+					this52.array[this52.pos++] = 0;
+					var this53 = _this18.tmp;
+					if(this53.pos == this53.array.length) {
+						var newSize52 = this53.array.length << 1;
 						if(newSize52 < 128) {
 							newSize52 = 128;
 						}
 						var newArray52 = new Float32Array(newSize52);
-						newArray52.set(this152.array);
-						this152.array = newArray52;
+						newArray52.set(this53.array);
+						this53.array = newArray52;
 					}
-					this152.array[this152.pos++] = r6;
-					var this153 = _this18.tmp;
-					if(this153.pos == this153.array.length) {
-						var newSize53 = this153.array.length << 1;
+					this53.array[this53.pos++] = r6;
+					var this54 = _this18.tmp;
+					if(this54.pos == this54.array.length) {
+						var newSize53 = this54.array.length << 1;
 						if(newSize53 < 128) {
 							newSize53 = 128;
 						}
 						var newArray53 = new Float32Array(newSize53);
-						newArray53.set(this153.array);
-						this153.array = newArray53;
+						newArray53.set(this54.array);
+						this54.array = newArray53;
 					}
-					this153.array[this153.pos++] = g6;
-					var this154 = _this18.tmp;
-					if(this154.pos == this154.array.length) {
-						var newSize54 = this154.array.length << 1;
+					this54.array[this54.pos++] = g6;
+					var this55 = _this18.tmp;
+					if(this55.pos == this55.array.length) {
+						var newSize54 = this55.array.length << 1;
 						if(newSize54 < 128) {
 							newSize54 = 128;
 						}
 						var newArray54 = new Float32Array(newSize54);
-						newArray54.set(this154.array);
-						this154.array = newArray54;
+						newArray54.set(this55.array);
+						this55.array = newArray54;
 					}
-					this154.array[this154.pos++] = b6;
-					var this155 = _this18.tmp;
-					if(this155.pos == this155.array.length) {
-						var newSize55 = this155.array.length << 1;
+					this55.array[this55.pos++] = b6;
+					var this56 = _this18.tmp;
+					if(this56.pos == this56.array.length) {
+						var newSize55 = this56.array.length << 1;
 						if(newSize55 < 128) {
 							newSize55 = 128;
 						}
 						var newArray55 = new Float32Array(newSize55);
-						newArray55.set(this155.array);
-						this155.array = newArray55;
+						newArray55.set(this56.array);
+						this56.array = newArray55;
 					}
-					this155.array[this155.pos++] = a6;
+					this56.array[this56.pos++] = a6;
 					_this18.bufferDirty = true;
 					var _this19 = this.content;
 					var x7 = p.x - nnx;
@@ -11245,94 +11495,94 @@ h2d_Graphics.prototype = $extend(h2d_Drawable.prototype,{
 					var g7 = p.g;
 					var b7 = p.b;
 					var a7 = p.a;
-					var this156 = _this19.tmp;
-					if(this156.pos == this156.array.length) {
-						var newSize56 = this156.array.length << 1;
+					var this57 = _this19.tmp;
+					if(this57.pos == this57.array.length) {
+						var newSize56 = this57.array.length << 1;
 						if(newSize56 < 128) {
 							newSize56 = 128;
 						}
 						var newArray56 = new Float32Array(newSize56);
-						newArray56.set(this156.array);
-						this156.array = newArray56;
+						newArray56.set(this57.array);
+						this57.array = newArray56;
 					}
-					this156.array[this156.pos++] = x7;
-					var this157 = _this19.tmp;
-					if(this157.pos == this157.array.length) {
-						var newSize57 = this157.array.length << 1;
+					this57.array[this57.pos++] = x7;
+					var this58 = _this19.tmp;
+					if(this58.pos == this58.array.length) {
+						var newSize57 = this58.array.length << 1;
 						if(newSize57 < 128) {
 							newSize57 = 128;
 						}
 						var newArray57 = new Float32Array(newSize57);
-						newArray57.set(this157.array);
-						this157.array = newArray57;
+						newArray57.set(this58.array);
+						this58.array = newArray57;
 					}
-					this157.array[this157.pos++] = y7;
-					var this158 = _this19.tmp;
-					if(this158.pos == this158.array.length) {
-						var newSize58 = this158.array.length << 1;
+					this58.array[this58.pos++] = y7;
+					var this59 = _this19.tmp;
+					if(this59.pos == this59.array.length) {
+						var newSize58 = this59.array.length << 1;
 						if(newSize58 < 128) {
 							newSize58 = 128;
 						}
 						var newArray58 = new Float32Array(newSize58);
-						newArray58.set(this158.array);
-						this158.array = newArray58;
+						newArray58.set(this59.array);
+						this59.array = newArray58;
 					}
-					this158.array[this158.pos++] = 0;
-					var this159 = _this19.tmp;
-					if(this159.pos == this159.array.length) {
-						var newSize59 = this159.array.length << 1;
+					this59.array[this59.pos++] = 0;
+					var this60 = _this19.tmp;
+					if(this60.pos == this60.array.length) {
+						var newSize59 = this60.array.length << 1;
 						if(newSize59 < 128) {
 							newSize59 = 128;
 						}
 						var newArray59 = new Float32Array(newSize59);
-						newArray59.set(this159.array);
-						this159.array = newArray59;
+						newArray59.set(this60.array);
+						this60.array = newArray59;
 					}
-					this159.array[this159.pos++] = 0;
-					var this160 = _this19.tmp;
-					if(this160.pos == this160.array.length) {
-						var newSize60 = this160.array.length << 1;
+					this60.array[this60.pos++] = 0;
+					var this61 = _this19.tmp;
+					if(this61.pos == this61.array.length) {
+						var newSize60 = this61.array.length << 1;
 						if(newSize60 < 128) {
 							newSize60 = 128;
 						}
 						var newArray60 = new Float32Array(newSize60);
-						newArray60.set(this160.array);
-						this160.array = newArray60;
+						newArray60.set(this61.array);
+						this61.array = newArray60;
 					}
-					this160.array[this160.pos++] = r7;
-					var this161 = _this19.tmp;
-					if(this161.pos == this161.array.length) {
-						var newSize61 = this161.array.length << 1;
+					this61.array[this61.pos++] = r7;
+					var this62 = _this19.tmp;
+					if(this62.pos == this62.array.length) {
+						var newSize61 = this62.array.length << 1;
 						if(newSize61 < 128) {
 							newSize61 = 128;
 						}
 						var newArray61 = new Float32Array(newSize61);
-						newArray61.set(this161.array);
-						this161.array = newArray61;
+						newArray61.set(this62.array);
+						this62.array = newArray61;
 					}
-					this161.array[this161.pos++] = g7;
-					var this162 = _this19.tmp;
-					if(this162.pos == this162.array.length) {
-						var newSize62 = this162.array.length << 1;
+					this62.array[this62.pos++] = g7;
+					var this63 = _this19.tmp;
+					if(this63.pos == this63.array.length) {
+						var newSize62 = this63.array.length << 1;
 						if(newSize62 < 128) {
 							newSize62 = 128;
 						}
 						var newArray62 = new Float32Array(newSize62);
-						newArray62.set(this162.array);
-						this162.array = newArray62;
+						newArray62.set(this63.array);
+						this63.array = newArray62;
 					}
-					this162.array[this162.pos++] = b7;
-					var this163 = _this19.tmp;
-					if(this163.pos == this163.array.length) {
-						var newSize63 = this163.array.length << 1;
+					this63.array[this63.pos++] = b7;
+					var this64 = _this19.tmp;
+					if(this64.pos == this64.array.length) {
+						var newSize63 = this64.array.length << 1;
 						if(newSize63 < 128) {
 							newSize63 = 128;
 						}
 						var newArray63 = new Float32Array(newSize63);
-						newArray63.set(this163.array);
-						this163.array = newArray63;
+						newArray63.set(this64.array);
+						this64.array = newArray63;
 					}
-					this163.array[this163.pos++] = a7;
+					this64.array[this64.pos++] = a7;
 					_this19.bufferDirty = true;
 					var _this20 = this.content;
 					_this20.index.push(this.pindex + 1);
@@ -31377,41 +31627,6 @@ var h3d_impl_RenderFlag = $hxEnums["h3d.impl.RenderFlag"] = { __ename__ : "h3d.i
 	,CameraHandness: {_hx_index:0,__enum__:"h3d.impl.RenderFlag",toString:$estr}
 };
 h3d_impl_RenderFlag.__empty_constructs__ = [h3d_impl_RenderFlag.CameraHandness];
-var haxe_IMap = function() { };
-$hxClasses["haxe.IMap"] = haxe_IMap;
-haxe_IMap.__name__ = "haxe.IMap";
-haxe_IMap.__isInterface__ = true;
-var haxe_ds_StringMap = function() {
-	this.h = Object.create(null);
-};
-$hxClasses["haxe.ds.StringMap"] = haxe_ds_StringMap;
-haxe_ds_StringMap.__name__ = "haxe.ds.StringMap";
-haxe_ds_StringMap.__interfaces__ = [haxe_IMap];
-haxe_ds_StringMap.keysIterator = function(h) {
-	var keys = Object.keys(h);
-	var len = keys.length;
-	var idx = 0;
-	return { hasNext : function() {
-		return idx < len;
-	}, next : function() {
-		idx += 1;
-		return keys[idx - 1];
-	}};
-};
-haxe_ds_StringMap.valueIterator = function(h) {
-	var keys = Object.keys(h);
-	var len = keys.length;
-	var idx = 0;
-	return { hasNext : function() {
-		return idx < len;
-	}, next : function() {
-		idx += 1;
-		return h[keys[idx - 1]];
-	}};
-};
-haxe_ds_StringMap.prototype = {
-	__class__: haxe_ds_StringMap
-};
 var h3d_impl_InputNames = function(names) {
 	this.id = h3d_impl_InputNames.UID++;
 	this.names = names;
@@ -32650,11 +32865,11 @@ h3d_impl_GlDriver.prototype = $extend(h3d_impl_Driver.prototype,{
 		var dataLen = pixels.dataSize;
 		var buffer;
 		switch(t.format._hx_index) {
-		case 3:case 6:case 9:case 12:
-			buffer = new Uint16Array(pixels.bytes.b.buffer,pixels.offset,dataLen >> 1);
-			break;
 		case 4:case 7:case 10:case 13:
 			buffer = new Float32Array(pixels.bytes.b.buffer,pixels.offset,dataLen >> 2);
+			break;
+		case 3:case 6:case 9:case 12:
+			buffer = new Uint16Array(pixels.bytes.b.buffer,pixels.offset,dataLen >> 1);
 			break;
 		case 16:case 17:
 			buffer = new Uint32Array(pixels.bytes.b.buffer,pixels.offset,dataLen >> 2);
@@ -33193,11 +33408,11 @@ h3d_impl_GlDriver.prototype = $extend(h3d_impl_Driver.prototype,{
 		}
 		var buffer = pixels.bytes.b;
 		switch(this.curTarget.format._hx_index) {
-		case 3:case 6:case 9:case 12:
-			buffer = new Uint16Array(buffer.buffer);
-			break;
 		case 4:case 7:case 10:case 13:
 			buffer = new Float32Array(buffer.buffer);
+			break;
+		case 3:case 6:case 9:case 12:
+			buffer = new Uint16Array(buffer.buffer);
 			break;
 		case 16:case 17:
 			buffer = new Uint32Array(buffer.buffer);
@@ -35167,35 +35382,6 @@ h3d_mat_Stencil.prototype = {
 		this.set_reference(this.maskBits >> 16 & 255);
 	}
 	,__class__: h3d_mat_Stencil
-};
-var haxe_ds_IntMap = function() {
-	this.h = { };
-};
-$hxClasses["haxe.ds.IntMap"] = haxe_ds_IntMap;
-haxe_ds_IntMap.__name__ = "haxe.ds.IntMap";
-haxe_ds_IntMap.__interfaces__ = [haxe_IMap];
-haxe_ds_IntMap.prototype = {
-	remove: function(key) {
-		if(!this.h.hasOwnProperty(key)) {
-			return false;
-		}
-		delete(this.h[key]);
-		return true;
-	}
-	,keys: function() {
-		var a = [];
-		for( var key in this.h ) if(this.h.hasOwnProperty(key)) a.push(key | 0);
-		return new haxe_iterators_ArrayIterator(a);
-	}
-	,iterator: function() {
-		return { ref : this.h, it : this.keys(), hasNext : function() {
-			return this.it.hasNext();
-		}, next : function() {
-			var i = this.it.next();
-			return this.ref[i];
-		}};
-	}
-	,__class__: haxe_ds_IntMap
 };
 var hxd_PixelFormat = $hxEnums["hxd.PixelFormat"] = { __ename__ : "hxd.PixelFormat", __constructs__ : ["ARGB","BGRA","RGBA","RGBA16F","RGBA32F","R8","R16F","R32F","RG8","RG16F","RG32F","RGB8","RGB16F","RGB32F","SRGB","SRGB_ALPHA","RGB10A2","RG11B10UF","R16U","RGB16U","RGBA16U","S3TC"]
 	,ARGB: {_hx_index:0,__enum__:"hxd.PixelFormat",toString:$estr}
@@ -43328,11 +43514,11 @@ h3d_scene_CameraController.prototype = $extend(h3d_scene_Object.prototype,{
 				if(e.kind == hxd_EventKind.ERelease && HxOverrides.now() / 1000 - this.pushTime < 0.2) {
 					var dx = e.relX - this.pushStartX;
 					var dy = e.relY - this.pushStartY;
-					var dz1 = 0.;
-					if(dz1 == null) {
-						dz1 = 0.;
+					var dz = 0.;
+					if(dz == null) {
+						dz = 0.;
 					}
-					tmp = Math.sqrt(dx * dx + dy * dy + dz1 * dz1) < 5;
+					tmp = Math.sqrt(dx * dx + dy * dy + dz * dz) < 5;
 				} else {
 					tmp = false;
 				}
@@ -48505,6 +48691,10 @@ h3d_shader_VolumeDecal.prototype = $extend(hxsl_Shader.prototype,{
 	}
 	,__class__: h3d_shader_VolumeDecal
 });
+var haxe_IMap = function() { };
+$hxClasses["haxe.IMap"] = haxe_IMap;
+haxe_IMap.__name__ = "haxe.IMap";
+haxe_IMap.__isInterface__ = true;
 var haxe_EntryPoint = function() { };
 $hxClasses["haxe.EntryPoint"] = haxe_EntryPoint;
 haxe_EntryPoint.__name__ = "haxe.EntryPoint";
@@ -50237,6 +50427,35 @@ haxe_ds_EnumValueMap.prototype = $extend(haxe_ds_BalancedTree.prototype,{
 	}
 	,__class__: haxe_ds_EnumValueMap
 });
+var haxe_ds_IntMap = function() {
+	this.h = { };
+};
+$hxClasses["haxe.ds.IntMap"] = haxe_ds_IntMap;
+haxe_ds_IntMap.__name__ = "haxe.ds.IntMap";
+haxe_ds_IntMap.__interfaces__ = [haxe_IMap];
+haxe_ds_IntMap.prototype = {
+	remove: function(key) {
+		if(!this.h.hasOwnProperty(key)) {
+			return false;
+		}
+		delete(this.h[key]);
+		return true;
+	}
+	,keys: function() {
+		var a = [];
+		for( var key in this.h ) if(this.h.hasOwnProperty(key)) a.push(key | 0);
+		return new haxe_iterators_ArrayIterator(a);
+	}
+	,iterator: function() {
+		return { ref : this.h, it : this.keys(), hasNext : function() {
+			return this.it.hasNext();
+		}, next : function() {
+			var i = this.it.next();
+			return this.ref[i];
+		}};
+	}
+	,__class__: haxe_ds_IntMap
+};
 var haxe_ds_List = function() {
 	this.length = 0;
 };
@@ -50327,6 +50546,37 @@ haxe_ds_ObjectMap.prototype = {
 		return new haxe_iterators_ArrayIterator(a);
 	}
 	,__class__: haxe_ds_ObjectMap
+};
+var haxe_ds_StringMap = function() {
+	this.h = Object.create(null);
+};
+$hxClasses["haxe.ds.StringMap"] = haxe_ds_StringMap;
+haxe_ds_StringMap.__name__ = "haxe.ds.StringMap";
+haxe_ds_StringMap.__interfaces__ = [haxe_IMap];
+haxe_ds_StringMap.keysIterator = function(h) {
+	var keys = Object.keys(h);
+	var len = keys.length;
+	var idx = 0;
+	return { hasNext : function() {
+		return idx < len;
+	}, next : function() {
+		idx += 1;
+		return keys[idx - 1];
+	}};
+};
+haxe_ds_StringMap.valueIterator = function(h) {
+	var keys = Object.keys(h);
+	var len = keys.length;
+	var idx = 0;
+	return { hasNext : function() {
+		return idx < len;
+	}, next : function() {
+		idx += 1;
+		return h[keys[idx - 1]];
+	}};
+};
+haxe_ds_StringMap.prototype = {
+	__class__: haxe_ds_StringMap
 };
 var haxe_ds_Vector = {};
 haxe_ds_Vector.blit = function(src,srcPos,dest,destPos,len) {
@@ -55872,9 +56122,11 @@ hxd_clipper__$Clipper_ClipperBase.prototype = {
 	}
 	,addPolygons: function(ppg,polyType) {
 		var result = false;
-		var _g = new hxd_impl_ArrayIterator_$h2d_$col_$IPolygon(ppg);
-		while(_g.i < _g.l) {
-			var p = _g.a[_g.i++];
+		var _g_i = 0;
+		var _g_a = ppg;
+		var _g_l = _g_a.length;
+		while(_g_i < _g_l) {
+			var p = _g_a[_g_i++];
 			if(this.addPolygon(p,polyType)) {
 				result = true;
 			}
@@ -58228,9 +58480,11 @@ hxd_clipper_Clipper.prototype = $extend(hxd_clipper__$Clipper_ClipperBase.protot
 		}
 	}
 	,reversePolygons: function(polys) {
-		var _g = new hxd_impl_ArrayIterator_$h2d_$col_$IPolygon(polys);
-		while(_g.i < _g.l) {
-			var p = _g.a[_g.i++];
+		var _g_i = 0;
+		var _g_a = polys;
+		var _g_l = _g_a.length;
+		while(_g_i < _g_l) {
+			var p = _g_a[_g_i++];
 			h2d_col_IPolygon.reverse(p);
 		}
 	}
@@ -59261,9 +59515,11 @@ hxd_clipper_ClipperOffset.prototype = {
 		}
 	}
 	,addPolygons: function(pols,joinType,endType) {
-		var _g = new hxd_impl_ArrayIterator_$h2d_$col_$IPolygon(pols);
-		while(_g.i < _g.l) {
-			var p = _g.a[_g.i++];
+		var _g_i = 0;
+		var _g_a = pols;
+		var _g_l = _g_a.length;
+		while(_g_i < _g_l) {
+			var p = _g_a[_g_i++];
 			this.addPolygon(p,joinType,endType);
 		}
 	}
@@ -59296,11 +59552,11 @@ hxd_clipper_ClipperOffset.prototype = {
 		if(dx == 0 && dy == 0) {
 			return new h2d_col_Point();
 		}
-		var dz1 = 0.;
-		if(dz1 == null) {
-			dz1 = 0.;
+		var dz = 0.;
+		if(dz == null) {
+			dz = 0.;
 		}
-		var f = 1 / Math.sqrt(dx * dx + dy * dy + dz1 * dz1);
+		var f = 1 / Math.sqrt(dx * dx + dy * dy + dz * dz);
 		dx *= f;
 		dy *= f;
 		return new h2d_col_Point(dy,-dx);
@@ -61395,8 +61651,8 @@ hxd_fmt_fbx_BaseLibrary.prototype = {
 								if(x1.nodeType != Xml.Document && x1.nodeType != Xml.Element) {
 									throw haxe_Exception.thrown("Invalid nodeType " + (x1.nodeType == null ? "null" : XmlType.toString(x1.nodeType)));
 								}
-								var this11 = x1;
-								var f3 = this11.elements();
+								var this2 = x1;
+								var f3 = this2.elements();
 								while(f3.hasNext()) {
 									var f4 = f3.next();
 									var f5 = haxe_xml_Access.get_innerData(f4).split(" ");
@@ -61406,9 +61662,9 @@ hxd_fmt_fbx_BaseLibrary.prototype = {
 								if(this.uvAnims == null) {
 									this.uvAnims = new haxe_ds_StringMap();
 								}
-								var this12 = this.uvAnims;
+								var this3 = this.uvAnims;
 								var key = hxd_fmt_fbx_FbxTools.getName(m);
-								this12.h[key] = frames;
+								this3.h[key] = frames;
 							}
 							break;
 						default:
@@ -62731,29 +62987,29 @@ hxd_fmt_fbx_BaseLibrary.prototype = {
 			if(c.a == null) {
 				alpha = null;
 			} else {
-				var this11 = new Array(numFrames1);
-				alpha = this11;
+				var this2 = new Array(numFrames1);
+				alpha = this2;
 			}
 			var uvs;
 			if(c.uv == null) {
 				uvs = null;
 			} else {
-				var this12 = new Array(numFrames1 * 2);
-				uvs = this12;
+				var this3 = new Array(numFrames1 * 2);
+				uvs = this3;
 			}
 			var roll;
 			if(c.roll == null) {
 				roll = null;
 			} else {
-				var this13 = new Array(numFrames1);
-				roll = this13;
+				var this4 = new Array(numFrames1);
+				roll = this4;
 			}
 			var fov;
 			if(c.fov == null) {
 				fov = null;
 			} else {
-				var this14 = new Array(numFrames1);
-				fov = this14;
+				var this5 = new Array(numFrames1);
+				fov = this5;
 			}
 			if(frames == null && alpha == null && uvs == null && roll == null && fov == null) {
 				continue;
@@ -66727,8 +66983,8 @@ hxd_fmt_hmd_Library.prototype = {
 				l.addCurve(o.name,fl,true,rot,scale);
 			}
 			if((o.flags & 1 << hxd_fmt_hmd_AnimationFlag.HasUV._hx_index) != 0) {
-				var this11 = new Array(a.frames * 2);
-				var fl1 = this11;
+				var this2 = new Array(a.frames * 2);
+				var fl1 = this2;
 				var size1 = 8 * a.frames;
 				var data1 = new haxe_io_Bytes(new ArrayBuffer(size1));
 				entry.read(data1,0,size1);
@@ -66741,8 +66997,8 @@ hxd_fmt_hmd_Library.prototype = {
 				l.addUVCurve(o.name,fl1);
 			}
 			if((o.flags & 1 << hxd_fmt_hmd_AnimationFlag.HasAlpha._hx_index) != 0) {
-				var this12 = new Array(a.frames);
-				var fl2 = this12;
+				var this3 = new Array(a.frames);
+				var fl2 = this3;
 				var size2 = 4 * a.frames;
 				var data2 = new haxe_io_Bytes(new ArrayBuffer(size2));
 				entry.read(data2,0,size2);
@@ -66760,8 +67016,8 @@ hxd_fmt_hmd_Library.prototype = {
 				while(_g8 < _g9.length) {
 					var p1 = _g9[_g8];
 					++_g8;
-					var this13 = new Array(a.frames);
-					var fl3 = this13;
+					var this4 = new Array(a.frames);
+					var fl3 = this4;
 					var size3 = 4 * a.frames;
 					var data3 = new haxe_io_Bytes(new ArrayBuffer(size3));
 					entry.read(data3,0,size3);
@@ -77478,6 +77734,9 @@ hxsl_Eval.prototype = {
 					d = hxsl_TExprDef.TBinop(op,e11,e21);
 				}
 				break;
+			case 4:case 21:
+				d = hxsl_TExprDef.TBinop(op,e11,e21);
+				break;
 			case 5:
 				var _g1 = e21.e;
 				var _g2 = e11.e;
@@ -78323,9 +78582,6 @@ hxsl_Eval.prototype = {
 				break;
 			case 20:
 				var _g1 = op.op;
-				d = hxsl_TExprDef.TBinop(op,e11,e21);
-				break;
-			case 4:case 21:
 				d = hxsl_TExprDef.TBinop(op,e11,e21);
 				break;
 			case 22:
@@ -84666,6 +84922,7 @@ if(ArrayBuffer.prototype.slice == null) {
 }
 Main.MOVE_LENGTH = 0.15;
 Main.editor_buttons = ["Player","C1","C2","0_Floor","0_Ramp","1_Floor","1_Ramp","2_Floor","2_Ramp","3_Floor","3_Ramp","4_Floor","Wall"];
+Tests.tests = [new TestDat("cy9:GameStatey4:dirsazi1i2i3hy5:Tilesaancy4:Tiley14:ramp_directioni-1y6:heighti20y8:altitudezy1:yi1y1:xi1gcR3R4i-1R5i20R6zR7i1R8i2gcR3R4i-1R5i20R6zR7i1R8i3gncR3R4i-1R5i20R6zR7i1R8i5gcR3R4i-1R5i20R6zR7i1R8i6gcR3R4i-1R5i20R6zR7i1R8i7gnhacR3R4i-1R5i20R6zR7i2R8zgcR3R4i-1R5i20R6zR7i2R8i1gcR3R4i-1R5i12R6zR7i2R8i2gcR3R4i-1R5i12R6zR7i2R8i3gcR3R4i-1R5i12R6zR7i2R8i4gcR3R4i-1R5i12R6zR7i2R8i5gcR3R4i-1R5i12R6zR7i2R8i6gcR3R4i-1R5i20R6zR7i2R8i7gcR3R4i-1R5i20R6zR7i2R8i8ghacR3R4i-1R5i20R6zR7i3R8zgcR3R4i-1R5i20R6zR7i3R8i1gcR3R4i-1R5i12R6zR7i3R8i2gcR3R4zR5i12R6zR7i3R8i3gcR3R4i-1R5i12R6zR7i3R8i4gcR3R4i3R5i12R6zR7i3R8i5gcR3R4zR5i12R6zR7i3R8i6gcR3R4i-1R5i20R6zR7i3R8i7gcR3R4i-1R5i20R6zR7i3R8i8ghacR3R4i-1R5i20R6zR7i4R8zgcR3R4i-1R5i20R6zR7i4R8i1gcR3R4i-1R5i12R6zR7i4R8i2gcR3R4zR5i10R6zR7i4R8i3gcR3R4zR5i10R6zR7i4R8i4gcR3R4i-1R5i8R6zR7i4R8i5gcR3R4i-1R5i10R6zR7i4R8i6gcR3R4i-1R5i20R6zR7i4R8i7gcR3R4i-1R5i20R6zR7i4R8i8ghacR3R4zR5i8R6zR7i5R8zgcR3R4i-1R5i6R6zR7i5R8i1gcR3R4i-1R5i6R6zR7i5R8i2gcR3R4i1R5i8R6zR7i5R8i3gcR3R4i3R5i10R6zR7i5R8i4gcR3R4i3R5i8R6zR7i5R8i5gcR3R4i-1R5i6R6zR7i5R8i6gcR3R4i-1R5i6R6zR7i5R8i7gcR3R4i-1R5i6R6zR7i5R8i8ghacR3R4i3R5i8R6zR7i6R8zgcR3R4i-1R5i6R6zR7i6R8i1gcR3R4i2R5i8R6zR7i6R8i2gcR3R4i-1R5i6R6zR7i6R8i3gcR3R4zR5i8R6zR7i6R8i4gcR3R4i-1R5i6R6zR7i6R8i5gcR3R4i-1R5i6R6zR7i6R8i6gcR3R4i-1R5i6R6zR7i6R8i7gcR3R4i-1R5i6R6zR7i6R8i8ghacR3R4i2R5i8R6zR7i7R8zgcR3R4i-1R5i8R6zR7i7R8i1gcR3R4i3R5i8R6zR7i7R8i2gcR3R4i-1R5i6R6zR7i7R8i3gcR3R4i-1R5i6R6zR7i7R8i4gcR3R4i-1R5i6R6zR7i7R8i5gcR3R4i3R5i6R6zR7i7R8i6gcR3R4i-1R5i4R6zR7i7R8i7gcR3R4i-1R5i4R6zR7i7R8i8ghacR3R4i-1R5i4R6zR7i8R8zgcR3R4zR5i8R6zR7i8R8i1gcR3R4zR5i6R6zR7i8R8i2gcR3R4i-1R5i4R6zR7i8R8i3gcR3R4i-1R5i4R6zR7i8R8i4gcR3R4i-1R5i6R6zR7i8R8i5gcR3R4i-1R5i4R6zR7i8R8i6gcR3R4i-1R5i4R6zR7i8R8i7gcR3R4i2R5i6R6zR7i8R8i8ghacR3R4i-1R5i4R6zR7i9R8zgcR3R4i-1R5i4R6zR7i9R8i1gcR3R4zR5i6R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gcR3R4i1R5i6R6zR7i9R8i4gcR3R4i-1R5i6R6zR7i9R8i5gcR3R4i3R5i6R6zR7i9R8i6gcR3R4i-1R5i4R6zR7i9R8i7gcR3R4i-1R5i6R6zR7i9R8i8ghancR3R4i-1R5i4R6zR7i9R8i1gcR3R4i-1R5i4R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gu5hhy2:c2cy6:Entityy12:fromaltitudei4y5:fromyi7y5:fromxi6R5i4R6i4R7i7R8i6y3:diri2y7:fromdiri2gy1:pcR10R11i5R12i7R13i2R5i2R6i5R7i7R8i2R14i2R15i2gy2:c1cR10R11i6R12i5R13i6R5i4R6i6R7i5R8i6R14i2R15i2gy6:pillowcR10R11i5R12i8R13i2R5i2R6i5R7i8R8i2R14i2R15i2gg","EWEW","3,7,4,6,5,6,6,7,4"),new TestDat("cy9:GameStatey4:dirsazi1i2i3hy5:Tilesaancy4:Tiley14:ramp_directioni-1y6:heighti20y8:altitudezy1:yi1y1:xi1gcR3R4i-1R5i20R6zR7i1R8i2gcR3R4i-1R5i20R6zR7i1R8i3gncR3R4i-1R5i20R6zR7i1R8i5gcR3R4i-1R5i20R6zR7i1R8i6gcR3R4i-1R5i20R6zR7i1R8i7gnhacR3R4i-1R5i20R6zR7i2R8zgcR3R4i-1R5i20R6zR7i2R8i1gcR3R4i-1R5i12R6zR7i2R8i2gcR3R4i-1R5i12R6zR7i2R8i3gcR3R4i-1R5i12R6zR7i2R8i4gcR3R4i-1R5i12R6zR7i2R8i5gcR3R4i-1R5i12R6zR7i2R8i6gcR3R4i-1R5i20R6zR7i2R8i7gcR3R4i-1R5i20R6zR7i2R8i8ghacR3R4i-1R5i20R6zR7i3R8zgcR3R4i-1R5i20R6zR7i3R8i1gcR3R4i-1R5i12R6zR7i3R8i2gcR3R4zR5i12R6zR7i3R8i3gcR3R4i-1R5i12R6zR7i3R8i4gcR3R4i3R5i12R6zR7i3R8i5gcR3R4zR5i12R6zR7i3R8i6gcR3R4i-1R5i20R6zR7i3R8i7gcR3R4i-1R5i20R6zR7i3R8i8ghacR3R4i-1R5i20R6zR7i4R8zgcR3R4i-1R5i20R6zR7i4R8i1gcR3R4i-1R5i12R6zR7i4R8i2gcR3R4zR5i10R6zR7i4R8i3gcR3R4zR5i10R6zR7i4R8i4gcR3R4i-1R5i8R6zR7i4R8i5gcR3R4i-1R5i10R6zR7i4R8i6gcR3R4i-1R5i20R6zR7i4R8i7gcR3R4i-1R5i20R6zR7i4R8i8ghacR3R4zR5i8R6zR7i5R8zgcR3R4i-1R5i6R6zR7i5R8i1gcR3R4i-1R5i6R6zR7i5R8i2gcR3R4i1R5i8R6zR7i5R8i3gcR3R4i3R5i10R6zR7i5R8i4gcR3R4i3R5i8R6zR7i5R8i5gcR3R4i-1R5i6R6zR7i5R8i6gcR3R4i-1R5i6R6zR7i5R8i7gcR3R4i-1R5i6R6zR7i5R8i8ghacR3R4i3R5i8R6zR7i6R8zgcR3R4i-1R5i6R6zR7i6R8i1gcR3R4i2R5i8R6zR7i6R8i2gcR3R4i-1R5i6R6zR7i6R8i3gcR3R4zR5i8R6zR7i6R8i4gcR3R4i-1R5i6R6zR7i6R8i5gcR3R4i-1R5i6R6zR7i6R8i6gcR3R4i-1R5i6R6zR7i6R8i7gcR3R4i-1R5i6R6zR7i6R8i8ghacR3R4i2R5i8R6zR7i7R8zgcR3R4i-1R5i8R6zR7i7R8i1gcR3R4i3R5i8R6zR7i7R8i2gcR3R4i-1R5i6R6zR7i7R8i3gcR3R4i-1R5i6R6zR7i7R8i4gcR3R4i-1R5i6R6zR7i7R8i5gcR3R4i3R5i6R6zR7i7R8i6gcR3R4i-1R5i4R6zR7i7R8i7gcR3R4i-1R5i4R6zR7i7R8i8ghacR3R4i-1R5i4R6zR7i8R8zgcR3R4zR5i8R6zR7i8R8i1gcR3R4zR5i6R6zR7i8R8i2gcR3R4i-1R5i4R6zR7i8R8i3gcR3R4i-1R5i4R6zR7i8R8i4gcR3R4i-1R5i6R6zR7i8R8i5gcR3R4i-1R5i4R6zR7i8R8i6gcR3R4i-1R5i4R6zR7i8R8i7gcR3R4i2R5i6R6zR7i8R8i8ghacR3R4i-1R5i4R6zR7i9R8zgcR3R4i-1R5i4R6zR7i9R8i1gcR3R4zR5i6R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gcR3R4i1R5i6R6zR7i9R8i4gcR3R4i-1R5i6R6zR7i9R8i5gcR3R4i3R5i6R6zR7i9R8i6gcR3R4i-1R5i4R6zR7i9R8i7gcR3R4i-1R5i6R6zR7i9R8i8ghancR3R4i-1R5i4R6zR7i9R8i1gcR3R4i-1R5i4R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gu5hhy2:c2cy6:Entityy12:fromaltitudei4y5:fromyi7y5:fromxi6R5i4R6i4R7i7R8i6y3:diri2y7:fromdiri2gy1:pcR10R11i5R12i8R13i4R5i2R6i5R7i8R8i4R14i1R15i1gy2:c1cR10R11i6R12i5R13i6R5i4R6i6R7i5R8i6R14i2R15i2gy6:pillowcR10R11i5R12i8R13i2R5i2R6i5R7i8R8i2R14i2R15i2gg","WSWN NNWN ES","2,7,5,6,5,6,6,7,4")];
 Xml.Element = 0;
 Xml.PCData = 1;
 Xml.CData = 2;

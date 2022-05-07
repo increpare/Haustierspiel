@@ -25,6 +25,7 @@ interface Positional {
 	public var height:Int;
 }
 
+//direction of increase
 enum abstract RampDirection(Int) to Int from Int {
 	var NONE=-1;
 	var N=0;
@@ -32,12 +33,108 @@ enum abstract RampDirection(Int) to Int from Int {
 	var S=2;
 	var W=3;
 }
-
-enum abstract Direction(Int) to Int {
+	
+enum abstract Direction(Int) to Int from Int {
 	var N=0;
 	var E=1;
 	var S=2;
 	var W=3;   
+}
+
+class Interval {
+	public var min:Int;
+	public var max:Int;
+	public function new(min:Int,max:Int){
+		this.min = min;
+		this.max = max;
+	}
+	public function Overlaps(other:Interval):Bool {
+		if (other.min >= this.max || other.max <= this.min){
+			return false;
+		} else {
+			return true;
+		}
+	}
+}
+
+class EdgeSilhouette {
+	public var x:Int;
+	public var y:Int;
+	public var faceDir:Direction;
+	public var left:Interval;
+	public var right:Interval;
+	public function new(e:Entity,dir:Direction,baseDir:RampDirection){
+		var _dir:Int =  Std.int(dir);
+		var _baseDir:Int = Std.int(baseDir);
+
+		this.x = e.x;
+		this.y = e.y;
+		this.faceDir = dir;
+		this.left = new Interval(e.altitude,e.altitude+e.height);
+		this.right = new Interval(e.altitude,e.altitude+e.height);
+		if (baseDir == RampDirection.NONE){
+			//leave as is
+		} else if (_dir == _baseDir ){
+			//raise left and right by 1
+			this.left.min += 1;
+			this.left.max += 1;
+			this.right.min += 1;
+			this.right.max += 1;
+		} else if (_dir == Tile.FlipDirection(_baseDir)){
+			this.left.min += -1;
+			this.left.max += -1;
+			this.right.min += -1;
+			this.right.max += -1;
+		} else if (_dir == Tile.RotateCounterClockwise(_baseDir)){
+			//lower left, raise right
+			this.left.min += -1;
+			this.left.max += -1;
+			this.right.min += 1;
+			this.right.max += 1;
+		} else {
+			//raise left, lower right
+			this.left.min += 1;
+			this.left.max += 1;
+			this.right.min += -1;
+			this.right.max += -1;
+		}
+	}
+
+	public static function DirX(d:Direction):Int {
+		if (d == Direction.E) {
+			return 1;
+		} else if (d == Direction.W) {
+			return -1;
+		} else {
+			return 0;
+		}
+	}
+	public static function DirY(d:Direction):Int {
+		if (d == Direction.N) {
+			return -1;
+		} else if (d == Direction.S) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+
+	public function Overlaps(other:Entity,other_rampDir:RampDirection):Bool {
+		var targetX = this.x + DirX(this.faceDir);
+		var targetY = this.y + DirY(this.faceDir);
+		if (targetX != other.x || targetY != other.y) {
+			return false;
+		} 
+		
+		var other_fromDir:Direction = Tile.FlipDirection(Std.int(faceDir));
+		var other_silhouette:EdgeSilhouette = new EdgeSilhouette(other, other_fromDir, other_rampDir);
+		trace("other_silhouette");
+		trace(other_silhouette);
+		if (left.Overlaps(other_silhouette.right) || right.Overlaps(other_silhouette.left)) {
+			return true;
+		}
+		return false;
+	}
 }
 
 class Tile implements Positional {
@@ -97,6 +194,7 @@ class Entity implements Positional {
     public var fromdir:Direction;
 
 	public function new(x:Int, y:Int, altitude:Int, height:Int, dir:Direction) {
+		trace("creating new entity of height " + height);
 		this.x = x;
 		this.y = y;
         this.fromx = x;
@@ -142,6 +240,15 @@ class GameState {
 		serializer.serialize(this);
 		return serializer.toString();
 	}
+
+	public function ToStringTrace():String{
+		var result:StringBuf=new StringBuf();
+		result.add(p.x+","+p.y+","+p.altitude+","
+				+c1.x+","+c1.y+","+c1.altitude+","
+				+c2.x+","+c2.y+","+c2.altitude);
+		return result.toString();
+	}
+	
 	public static function FromString(s:String):GameState{
 		var unserializer:Unserializer = new Unserializer(s);
 		return unserializer.unserialize();
@@ -216,14 +323,24 @@ class GameState {
 		var tx:Int = entity.x + dx;
 		var ty:Int = entity.y + dy;
 		var curtile = TileAt(entity.x, entity.y);//needs to return structure with height and ramp-direction
+
+		//create virtual tile if entity is standing another entity
 		var tile = TileAt(tx, ty);
+		var ents = CharactersAt(tx, ty);
+		for (i in 0...ents.length) {
+			var ent = ents[i];
+			if (ent.altitude<entity.altitude) {
+				tile = new Tile(tx,ty, entity.altitude+tile.altitude, tile.ramp_direction);
+			}
+		}
+
 		if (tile == null)
 			return false;
 		if (tile.isWall())
 			return false;
 
 		// if moving uphill
-		if (curtile.heightCoord() < tile.heightCoord()) {
+		if (entity.altitude < tile.heightCoord()) {
 			if (tile.ramp_direction != NONE && Std.int(tile.ramp_direction) != Std.int(d))
 				return false;
 			// if you're on a ramp, can only move uphill in the ramp direction
@@ -235,13 +352,21 @@ class GameState {
 			if (curtile.ramp_direction == NONE && tile.ramp_direction == NONE)
 				return false;
 			// you can never ascend by more than 2 units
-			if (curtile.heightCoord() + 2 < tile.heightCoord())
+			if (entity.altitude + 2 < tile.heightCoord())
 				return false;
 		}
 		// if both are ramps
 		if (curtile.ramp_direction != NONE && tile.ramp_direction != NONE) {
+			//if both are same altitude layer && if your ramp is downhill, and the next one isn't directly uphill, cancel
+			if (entity.height==tile.heightCoord() && curtile.ramp_direction == GameState.Tile.FlipDirection(d) && curtile.ramp_direction != GameState.Tile.FlipDirection(tile.ramp_direction) ) {
+				return false;
+			//if both are same altitude layer && if the source is going (uphill) in your direction, it's good 
+			} else if (entity.height==tile.heightCoord() && Std.int(curtile.ramp_direction) == Std.int(d)){
+		
 			// if the target is going in your direction, it's always good
-			if (Std.int(tile.ramp_direction) == Std.int(d)) {} else if (curtile.heightCoord() > tile.heightCoord()) {
+			} else if (Std.int(tile.ramp_direction) == Std.int(d)) {
+
+			} else if (entity.altitude > tile.heightCoord()) {
 				// if we're going downhill, it's good
 			} else {
 				// check both in the same direction or both in the opposite direction
@@ -263,8 +388,10 @@ class GameState {
 	}
 
 	public function tryMove(entity, d:GameState.Direction, canChain:Bool, canTurn:Bool):Bool {
+		trace("checking canmove");
 		if (!canMove(entity, d))
 			return false;
+		trace("can move");
 
 		var dx = 0;
 		var dy = 0;
@@ -281,38 +408,47 @@ class GameState {
 		var tx:Int = entity.x + dx;
 		var ty:Int = entity.y + dy;
 
+		trace("Entity");
+		trace(entity);
 		// check if entity at target location
 		var ents = CharactersAt(tx, ty);
-		if (ents.length > 0) {
-			if (canChain == false) {
-				return false;
-			} else {
-				var ent_under:GameState.Entity = ents[0];
-				// if ent_under below you, you can step on it
-				if (ent_under.altitude + ent_under.height < entity.altitude) {
-					// nothing to do
+		trace("tryMove");
+		trace(ents);
+
+		var target_floorTile : Tile = TileAt(tx, ty);
+		var target_ramp = target_floorTile.ramp_direction;
+		var forwardSilhouette = new EdgeSilhouette(entity,d,target_ramp);
+		var movedY:Int=-1;
+		for (i in 0...ents.length) {
+			var ent:Entity = ents[i];
+			trace("ent");
+			trace(ent);
+			trace("forwardSilhouette");
+			trace(forwardSilhouette);
+			if (forwardSilhouette.Overlaps(ent,target_ramp)) {
+				trace("overlapped");
+				if (canChain==false) {
+					return false;
 				} else {
-					// otherwise, try push
-					if (tryMove(ent_under, d, true, false) == false) {
+					var sy:Int = ent.y;
+					if (tryMove(ent, d, true, false) == false) {						
 						return false;
 					}
-					// move upper in parallel, if any
-					if (ents.length > 1) {
-						var ent_above:GameState.Entity = ents[1];
-
-						ent_above.fromx = ent_above.x;
-						ent_above.fromy = ent_above.y;
-						ent_above.fromaltitude = ent_above.altitude;
-
-						ent_above.x = ent_under.x;
-						ent_above.y = ent_under.y;
-						ent_above.altitude = ent_under.altitude + ent_under.height;
+					if (movedY<0 || movedY>sy){
+						movedY=sy;
 					}
 				}
 			}
 		}
-
-		var tile = TileAt(tx, ty);
+		if (movedY>=0){
+			for (i in 0...ents.length-1) {
+				var ent:Entity = ents[i];
+				if (ent.x==tx && ent.y==ty && ent.altitude>movedY){
+					tryMove(ent, d, true, false);
+				}
+			}
+		}
+		
 
 		entity.fromx = entity.x;
 		entity.fromy = entity.y;
@@ -321,20 +457,29 @@ class GameState {
 
 		entity.x = tx;
 		entity.y = ty;
-		entity.altitude = tile.altitude + tile.height;
+		entity.altitude = target_floorTile.altitude + target_floorTile.height;
+
 		if (canTurn) {
 			if (entity.dir == d || entity.dir == GameState.Tile.FlipDirection(d)) {
 				// do nothing
 			} else {
-				// turnn only 90 degrees
+				// turn only 90 degrees
 				entity.dir = d;
 			}
 		}
 
-		if (tile.ramp_direction != NONE) {
+		if (target_floorTile.ramp_direction != NONE) {
 			entity.altitude -= 1;
 		}
 
+		for (i in 0...ents.length) {
+			var ent:Entity = ents[i];
+			if (ent.x==tx && ent.y==ty && ent.altitude+ent.height>entity.altitude){
+				entity.altitude = ent.altitude+ent.height;
+			}
+		}
+
+		trace("entity.altitude " + entity.altitude);
 		return true;
 	}
 
@@ -644,19 +789,19 @@ class GameState {
 
 					case "b":
 						row.push(new Tile(j, i, 4, NONE));
-						result.pillow = new Entity(j, i, 4, 4, S);
+						result.pillow = new Entity(j, i, 4, 2, S);
 					case "B":
 						row.push(new Tile(j, i, 6, NONE));
-						result.pillow = new Entity(j, i, 6, 4, S);
+						result.pillow = new Entity(j, i, 6, 2, S);
 					case "c":
 						row.push(new Tile(j, i, 8, NONE));
-						result.pillow = new Entity(j, i, 8, 4, S);
+						result.pillow = new Entity(j, i, 8, 2, S);
 					case "C":
 						row.push(new Tile(j, i, 10, NONE));
-						result.pillow = new Entity(j, i, 10, 4, S);
+						result.pillow = new Entity(j, i, 10, 2, S);
 					case "x":
 						row.push(new Tile(j, i, 12, NONE));
-						result.pillow = new Entity(j, i, 12, 4, S);
+						result.pillow = new Entity(j, i, 12, 2, S);
 				}
 			}
 			if (row.length>0){

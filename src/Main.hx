@@ -43,7 +43,7 @@ class Main extends SampleApp {
 //   .0000d1a01
 //   ";
 
-	var levelDat:String = "cy9:GameStatey4:dirsazi1i2i3hy5:Tilesaau2cy4:Tiley14:ramp_directioni-1y6:heighti20y8:altitudezy1:yi1y1:xi2gcR3R4i-1R5i20R6zR7i1R8i3gcR3R4i-1R5i20R6zR7i1R8i4gncR3R4i-1R5i20R6zR7i1R8i6gcR3R4i-1R5i20R6zR7i1R8i7gcR3R4i-1R5i20R6zR7i1R8i8gnhacR3R4i-1R5i20R6zR7i2R8zgcR3R4i-1R5i20R6zR7i2R8i1gcR3R4i-1R5i20R6zR7i2R8i2gcR3R4i-1R5i12R6zR7i2R8i3gcR3R4i-1R5i12R6zR7i2R8i4gcR3R4i-1R5i12R6zR7i2R8i5gcR3R4i-1R5i12R6zR7i2R8i6gcR3R4i-1R5i12R6zR7i2R8i7gcR3R4i-1R5i20R6zR7i2R8i8gcR3R4i-1R5i20R6zR7i2R8i9ghacR3R4i-1R5i20R6zR7i3R8zgcR3R4i-1R5i20R6zR7i3R8i1gcR3R4i-1R5i20R6zR7i3R8i2gcR3R4i-1R5i12R6zR7i3R8i3gcR3R4zR5i12R6zR7i3R8i4gcR3R4i-1R5i12R6zR7i3R8i5gcR3R4i3R5i12R6zR7i3R8i6gcR3R4zR5i12R6zR7i3R8i7gcR3R4i-1R5i20R6zR7i3R8i8gcR3R4i-1R5i20R6zR7i3R8i9ghacR3R4i-1R5i20R6zR7i4R8zgcR3R4i-1R5i20R6zR7i4R8i1gcR3R4i-1R5i20R6zR7i4R8i2gcR3R4i-1R5i12R6zR7i4R8i3gcR3R4zR5i10R6zR7i4R8i4gcR3R4zR5i10R6zR7i4R8i5gcR3R4i-1R5i8R6zR7i4R8i6gcR3R4i-1R5i10R6zR7i4R8i7gcR3R4i-1R5i20R6zR7i4R8i8gcR3R4i-1R5i20R6zR7i4R8i9ghacR3R4i-1R5i6R6zR7i5R8zgcR3R4zR5i8R6zR7i5R8i1gcR3R4i-1R5i6R6zR7i5R8i2gcR3R4i-1R5i6R6zR7i5R8i3gcR3R4i1R5i8R6zR7i5R8i4gcR3R4i3R5i10R6zR7i5R8i5gcR3R4i3R5i8R6zR7i5R8i6gcR3R4i-1R5i6R6zR7i5R8i7gcR3R4i-1R5i6R6zR7i5R8i8gcR3R4i-1R5i6R6zR7i5R8i9ghacR3R4i1R5i8R6zR7i6R8zgcR3R4i3R5i8R6zR7i6R8i1gcR3R4i-1R5i6R6zR7i6R8i2gcR3R4i-1R5i6R6zR7i6R8i3gcR3R4i-1R5i6R6zR7i6R8i4gcR3R4zR5i8R6zR7i6R8i5gcR3R4i-1R5i6R6zR7i6R8i6gcR3R4i-1R5i6R6zR7i6R8i7gcR3R4i-1R5i6R6zR7i6R8i8gcR3R4i-1R5i6R6zR7i6R8i9ghacR3R4i-1R5i6R6zR7i7R8zgcR3R4i2R5i8R6zR7i7R8i1gcR3R4i-1R5i6R6zR7i7R8i2gcR3R4i-1R5i6R6zR7i7R8i3gcR3R4i-1R5i6R6zR7i7R8i4gcR3R4i-1R5i6R6zR7i7R8i5gcR3R4i-1R5i6R6zR7i7R8i6gcR3R4i3R5i6R6zR7i7R8i7gcR3R4i-1R5i4R6zR7i7R8i8gcR3R4i-1R5i4R6zR7i7R8i9ghancR3R4i-1R5i4R6zR7i8R8i1gcR3R4zR5i6R6zR7i8R8i2gcR3R4i-1R5i4R6zR7i8R8i3gcR3R4i-1R5i4R6zR7i8R8i4gcR3R4i-1R5i4R6zR7i8R8i5gcR3R4i-1R5i4R6zR7i8R8i6gcR3R4i-1R5i4R6zR7i8R8i7gcR3R4i-1R5i4R6zR7i8R8i8gcR3R4i2R5i6R6zR7i8R8i9ghancR3R4i-1R5i4R6zR7i9R8i1gcR3R4i-1R5i4R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gcR3R4i-1R5i4R6zR7i9R8i4gcR3R4i1R5i6R6zR7i9R8i5gcR3R4i-1R5i6R6zR7i9R8i6gcR3R4i3R5i6R6zR7i9R8i7gcR3R4i-1R5i4R6zR7i9R8i8gcR3R4i-1R5i6R6zR7i9R8i9ghhy2:c2cy6:Entityy12:fromaltitudei6y5:fromyi6y5:fromxi8R5i4R6i6R7i6R8i8y3:diri2y7:fromdiri2gy1:pcR10R11i6R12i7R13i2R5i2R6i6R7i7R8i2R14i2R15i2gy2:c1cR10R11i4R12i8R13i4R5i4R6i4R7i8R8i4R14i2R15i2gy6:pillowcR10R11i4R12i7R13i3R5i1R6i4R7i7R8i3R14i2R15i2gg";
+	var levelDat:String = "cy9:GameStatey4:dirsazi1i2i3hy5:Tilesaancy4:Tiley14:ramp_directioni-1y6:heighti20y8:altitudezy1:yi1y1:xi1gcR3R4i-1R5i20R6zR7i1R8i2gcR3R4i-1R5i20R6zR7i1R8i3gncR3R4i-1R5i20R6zR7i1R8i5gcR3R4i-1R5i20R6zR7i1R8i6gcR3R4i-1R5i20R6zR7i1R8i7gnhacR3R4i-1R5i20R6zR7i2R8zgcR3R4i-1R5i20R6zR7i2R8i1gcR3R4i-1R5i12R6zR7i2R8i2gcR3R4i-1R5i12R6zR7i2R8i3gcR3R4i-1R5i12R6zR7i2R8i4gcR3R4i-1R5i12R6zR7i2R8i5gcR3R4i-1R5i12R6zR7i2R8i6gcR3R4i-1R5i20R6zR7i2R8i7gcR3R4i-1R5i20R6zR7i2R8i8ghacR3R4i-1R5i20R6zR7i3R8zgcR3R4i-1R5i20R6zR7i3R8i1gcR3R4i-1R5i12R6zR7i3R8i2gcR3R4zR5i12R6zR7i3R8i3gcR3R4i-1R5i12R6zR7i3R8i4gcR3R4i3R5i12R6zR7i3R8i5gcR3R4zR5i12R6zR7i3R8i6gcR3R4i-1R5i20R6zR7i3R8i7gcR3R4i-1R5i20R6zR7i3R8i8ghacR3R4i-1R5i20R6zR7i4R8zgcR3R4i-1R5i20R6zR7i4R8i1gcR3R4i-1R5i12R6zR7i4R8i2gcR3R4zR5i10R6zR7i4R8i3gcR3R4zR5i10R6zR7i4R8i4gcR3R4i-1R5i8R6zR7i4R8i5gcR3R4i-1R5i10R6zR7i4R8i6gcR3R4i-1R5i20R6zR7i4R8i7gcR3R4i-1R5i20R6zR7i4R8i8ghacR3R4zR5i8R6zR7i5R8zgcR3R4i-1R5i6R6zR7i5R8i1gcR3R4i-1R5i6R6zR7i5R8i2gcR3R4i1R5i8R6zR7i5R8i3gcR3R4i3R5i10R6zR7i5R8i4gcR3R4i3R5i8R6zR7i5R8i5gcR3R4i-1R5i6R6zR7i5R8i6gcR3R4i-1R5i6R6zR7i5R8i7gcR3R4i-1R5i6R6zR7i5R8i8ghacR3R4i3R5i8R6zR7i6R8zgcR3R4i-1R5i6R6zR7i6R8i1gcR3R4i2R5i8R6zR7i6R8i2gcR3R4i-1R5i6R6zR7i6R8i3gcR3R4zR5i8R6zR7i6R8i4gcR3R4i-1R5i6R6zR7i6R8i5gcR3R4i-1R5i6R6zR7i6R8i6gcR3R4i-1R5i6R6zR7i6R8i7gcR3R4i-1R5i6R6zR7i6R8i8ghacR3R4i2R5i8R6zR7i7R8zgcR3R4i-1R5i8R6zR7i7R8i1gcR3R4i3R5i8R6zR7i7R8i2gcR3R4i-1R5i6R6zR7i7R8i3gcR3R4i-1R5i6R6zR7i7R8i4gcR3R4i-1R5i6R6zR7i7R8i5gcR3R4i3R5i6R6zR7i7R8i6gcR3R4i-1R5i4R6zR7i7R8i7gcR3R4i-1R5i4R6zR7i7R8i8ghacR3R4i-1R5i4R6zR7i8R8zgcR3R4zR5i8R6zR7i8R8i1gcR3R4zR5i6R6zR7i8R8i2gcR3R4i-1R5i4R6zR7i8R8i3gcR3R4i-1R5i4R6zR7i8R8i4gcR3R4i-1R5i6R6zR7i8R8i5gcR3R4i-1R5i4R6zR7i8R8i6gcR3R4i-1R5i4R6zR7i8R8i7gcR3R4i2R5i6R6zR7i8R8i8ghacR3R4i-1R5i4R6zR7i9R8zgcR3R4i-1R5i4R6zR7i9R8i1gcR3R4zR5i6R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gcR3R4i1R5i6R6zR7i9R8i4gcR3R4i-1R5i6R6zR7i9R8i5gcR3R4i3R5i6R6zR7i9R8i6gcR3R4i-1R5i4R6zR7i9R8i7gcR3R4i-1R5i6R6zR7i9R8i8ghancR3R4i-1R5i4R6zR7i9R8i1gcR3R4i-1R5i4R6zR7i9R8i2gcR3R4i-1R5i4R6zR7i9R8i3gu5hhy2:c2cy6:Entityy12:fromaltitudei4y5:fromyi7y5:fromxi6R5i4R6i4R7i7R8i6y3:diri2y7:fromdiri2gy1:pcR10R11i6R12i6R13i3R5i2R6i6R7i6R8i3R14i2R15i2gy2:c1cR10R11i6R12i5R13i6R5i4R6i6R7i5R8i6R14i2R15i2gy6:pillowcR10R11i5R12i7R13i2R5i2R6i5R7i7R8i2R14i2R15i2gg";
 
 	var cache:h3d.prim.ModelCache;
 
@@ -72,6 +72,18 @@ class Main extends SampleApp {
 	var editor_toolbar_interacts : Array<h3d.scene.Interactive>;
 	var editor_basegrid_interacts : Array<h3d.scene.Interactive> =[];
 
+
+	var recording_test:Bool=false;
+	var recording_startstate:String;
+	var recording_inputs:Array<String>;
+	
+	var lastInput:Int = -1;
+	var lastInputSuccess:Bool=false;
+
+	function resetLastInputStuff(){
+		lastInput = -1;
+		lastInputSuccess = false;
+	}
 	public static function Rotation(rotInt:Int):Float {
 		return (2 + rotInt) * Math.PI / 2.0;
 	}
@@ -250,6 +262,9 @@ class Main extends SampleApp {
 	var moveTimer:Float = -1;
 
 	function DoLerp(obj:h3d.scene.Object, ent:GameState.Entity) {
+		if (ent==null){
+			return;
+		}
 		var progress = (MOVE_LENGTH - moveTimer) / MOVE_LENGTH;
 		progress = Math.sin(progress * Math.PI / 2);
 		var x:Float = ent.fromx * (1 - progress) + ent.x * progress;
@@ -327,6 +342,7 @@ class Main extends SampleApp {
 		var l_str2 = gamestate.ToString();
 		trace(l_str2);
 		trace("IDEMPOTENCE:",l_str==l_str2);
+		trace(l_str2);
 	}
 
 	function AlterAltitude(x:Int,y:Int,alt:Int){
@@ -707,7 +723,7 @@ class Main extends SampleApp {
 				gamestate.pillow=null;
 			} else {
 				if (gamestate.pillow==null){
-					gamestate.pillow = new Entity(0,0,0,1,Direction.S);
+					gamestate.pillow = new Entity(0,0,0,2,Direction.S);
 				}
 				TryPlace(gamestate.pillow, editor_cursor_x, editor_cursor_y);
 			}
@@ -783,6 +799,44 @@ class Main extends SampleApp {
 		editor_gui.setPosition(editor_list_pos.x, editor_list_pos.y, editor_list_pos.z);
 	}
 
+	function runTests(){
+		trace("running " + Tests.tests.length+" tests.");
+		var failurecount=0;
+		for (i in 0...Tests.tests.length){
+			var test = Tests.tests[i];
+			var success = test.runTest();
+			if (!success){
+				failurecount++;
+			}			
+		}
+		trace("finished running tests. " + failurecount + "/" + Tests.tests.length + " failed.");
+	}
+
+	function dumpTestDat(){
+		trace("Dumping test data:");
+		var out:StringBuf = new StringBuf();
+		out.add("new TestDat(");
+		out.add('"'+recording_startstate+'",');
+		out.add('"'+recording_inputs.join("")+'",');
+		out.add('"'+gamestate.ToStringTrace()+'"');
+		out.add("),\n");
+		trace(out.toString());
+	}
+	function TryMovePlayer(d:Direction){
+		if (lastInputSuccess==false && d==lastInput){
+			return;
+		}
+		if (recording_test){
+			if (recording_inputs.length%5==0){
+				recording_inputs.push(" ");
+			}
+			recording_inputs.push(["N","E","S","W"][d]);
+		}
+		var success = tryMove(gamestate.p, d, true, true);
+		lastInputSuccess = success;
+		trace("success"+success);
+		lastInput = d;
+	}
 	override function update(dt:Float) {
 		if (moveTimer >= 0) {
 			AnimatePositions();
@@ -802,23 +856,43 @@ class Main extends SampleApp {
 				gamestate.c2.fromy = gamestate.c2.y;
 				gamestate.c2.fromaltitude = gamestate.c2.altitude;
 				gamestate.c2.fromdir = gamestate.c2.dir;
-				gamestate.pillow.fromx = gamestate.pillow.x;
-				gamestate.pillow.fromy = gamestate.pillow.y;
-				gamestate.pillow.fromaltitude = gamestate.pillow.altitude;
-				gamestate.pillow.fromdir = gamestate.pillow.dir;
+				if (gamestate.pillow!=null){
+					gamestate.pillow.fromx = gamestate.pillow.x;
+					gamestate.pillow.fromy = gamestate.pillow.y;
+					gamestate.pillow.fromaltitude = gamestate.pillow.altitude;
+					gamestate.pillow.fromdir = gamestate.pillow.dir;
+				}
 			}
 			return;
 		}
 		if (hxd.Key.isDown(hxd.Key.LEFT)) {
-			tryMove(gamestate.p, W, true, true);
+			TryMovePlayer(W);
 		} else if (hxd.Key.isDown(hxd.Key.RIGHT)) {
-			tryMove(gamestate.p, E, true, true);
+			TryMovePlayer(E);
 		} else if (hxd.Key.isDown(hxd.Key.UP)) {
-			tryMove(gamestate.p, N, true, true);
+			TryMovePlayer(N);
 		} else if (hxd.Key.isDown(hxd.Key.DOWN)) {
-			tryMove(gamestate.p, S, true, true);
+			TryMovePlayer(S);
 		}
 
+		if (hxd.Key.isPressed(hxd.Key.T)){
+			//if shift pressed, run tests
+			if (hxd.Key.isDown(hxd.Key.SHIFT)){
+				runTests();
+			} else {
+				if (recording_test==false){
+					recording_test=true;
+					resetLastInputStuff();
+					recording_inputs=[];
+					recording_startstate = gamestate.ToString();
+				} else {
+					recording_test=false;
+					dumpTestDat();
+				}
+
+
+			}
+		}
 		if (hxd.Key.isPressed(hxd.Key.TAB)) {
 			editormode = !editormode;
 			if (editormode==false){
@@ -1087,6 +1161,9 @@ class Main extends SampleApp {
 		}
 
 		gamestate = GameState.FromString(levelDat);
+		gamestate.pillow.height=2;
+		trace("pillow height = " + gamestate.pillow.height);
+
 
 		
 
