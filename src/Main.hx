@@ -1,3 +1,6 @@
+import js.html.Navigator;
+import js.lib.webassembly.Global;
+import js.html.Clipboard;
 import GameState.RampDirection;
 import GameState.Direction;
 import GameState.Entity;
@@ -91,8 +94,8 @@ class Main extends SampleApp {
 	function RenderLevel(rebuildstatic:Bool) {
 		if (rebuildstatic) {
 			//remove each static interact
-			trace("rebuilding static");
-			trace(editor_basegrid_interacts.length);
+			// trace("rebuilding static");
+			// trace(editor_basegrid_interacts.length);
 			for (i in 0...editor_basegrid_interacts.length){
 				var interact = editor_basegrid_interacts[i];
 				interact.remove();	
@@ -146,7 +149,7 @@ class Main extends SampleApp {
 								var dir:GameState.Direction = S;
 								// trace("height " + Std.string(tile.height));
 								// trace(Std.string(floor) + "_Ramp");
-								trace(Std.string(floor) + "_Ramp");
+								// trace(Std.string(floor) + "_Ramp");
 								obj = cast(prefabs[Std.string(floor) + "_Ramp"].clone(),Mesh);
 								obs_static.addChild(obj);
 								obj.setPosition(i * 2, j * 2, 0);
@@ -337,12 +340,12 @@ class Main extends SampleApp {
 		}
 
 		var l_str = gamestate.ToString();
-		trace(l_str);
+		// trace(l_str);
 		gamestate = GameState.FromString(l_str);
 		var l_str2 = gamestate.ToString();
-		trace(l_str2);
-		trace("IDEMPOTENCE:",l_str==l_str2);
-		trace(l_str2);
+		// trace(l_str2);
+		// trace("IDEMPOTENCE:",l_str==l_str2);
+		// trace(l_str2);
 	}
 
 	function AlterAltitude(x:Int,y:Int,alt:Int){
@@ -437,11 +440,11 @@ class Main extends SampleApp {
 		}
 		
 		if (e.x>=gamestate.Tiles[0].length){
-			trace("reducingX");
+			// trace("reducingX");
 			e.x--;
 		}
 		if (e.y>=gamestate.Tiles.length){
-			trace("reducingY");
+			// trace("reducingY");
 			e.y--;
 		}
 		e.fromx = e.x;
@@ -653,7 +656,7 @@ class Main extends SampleApp {
 			}
 		}
 
-		trace("adjust");
+		trace("adjust level size");
 		trace(gamestate.p.x,gamestate.p.y);
 		gamestate.p.x+=adjust_X;
 		gamestate.p.y+=adjust_Y;
@@ -664,13 +667,11 @@ class Main extends SampleApp {
 		gamestate.pillow.x+=adjust_X;
 		gamestate.pillow.y+=adjust_Y;
 
-		trace(gamestate.p.x,gamestate.p.y);
 		FitInBounds(gamestate.p);
 		FitInBounds(gamestate.c1);
 		FitInBounds(gamestate.c2);
 		FitInBounds(gamestate.pillow);
 
-		trace(gamestate.p.x,gamestate.p.y);
 		RenderLevel(true);
 	}
 
@@ -834,7 +835,6 @@ class Main extends SampleApp {
 		}
 		var success = tryMove(gamestate.p, d, true, true);
 		lastInputSuccess = success;
-		trace("success"+success);
 		lastInput = d;
 	}
 	override function update(dt:Float) {
@@ -875,17 +875,36 @@ class Main extends SampleApp {
 			TryMovePlayer(S);
 		}
 
+		if (hxd.Key.isPressed(hxd.Key.P)){
+			trace("P PRESSED");
+			//access navigator
+			var nav:Navigator = js.Lib.global.navigator;
+			var clipboard = nav.clipboard;
+
+			clipboard.readText().then(function(text){
+						
+				gamestate = GameState.FromString(text);
+				gamestate.pillow.height=2;
+				// trace("pillow height = " + gamestate.pillow.height);
+			
+				RenderLevel(true);
+				
+			});
+		}
+
 		if (hxd.Key.isPressed(hxd.Key.T)){
 			//if shift pressed, run tests
 			if (hxd.Key.isDown(hxd.Key.SHIFT)){
 				runTests();
 			} else {
 				if (recording_test==false){
+					trace("starting recording test");
 					recording_test=true;
 					resetLastInputStuff();
 					recording_inputs=[];
 					recording_startstate = gamestate.ToString();
 				} else {
+					trace("ended recording test");
 					recording_test=false;
 					dumpTestDat();
 				}
@@ -1162,7 +1181,7 @@ class Main extends SampleApp {
 
 		gamestate = GameState.FromString(levelDat);
 		gamestate.pillow.height=2;
-		trace("pillow height = " + gamestate.pillow.height);
+		// trace("pillow height = " + gamestate.pillow.height);
 
 
 		
@@ -1206,11 +1225,11 @@ class Main extends SampleApp {
 				var cur = new hxd.net.BinaryLoader(p);
 				cur.onLoaded = function(bytes) {
 					try {
-						trace("loaded " + p + " of size " + bytes.length);
+						// trace("loaded " + p + " of size " + bytes.length);
 						VirtualResources[p] = bytes;
 						loadedCount++;
 						if (loadedCount == toLoad.length) {
-							trace("all resources loaded");
+							// trace("all resources loaded");
 
 							new Main();
 						}

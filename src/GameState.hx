@@ -128,8 +128,6 @@ class EdgeSilhouette {
 		
 		var other_fromDir:Direction = Tile.FlipDirection(Std.int(faceDir));
 		var other_silhouette:EdgeSilhouette = new EdgeSilhouette(other, other_fromDir, other_rampDir);
-		trace("other_silhouette");
-		trace(other_silhouette);
 		if (left.Overlaps(other_silhouette.right) || right.Overlaps(other_silhouette.left)) {
 			return true;
 		}
@@ -194,7 +192,7 @@ class Entity implements Positional {
     public var fromdir:Direction;
 
 	public function new(x:Int, y:Int, altitude:Int, height:Int, dir:Direction) {
-		trace("creating new entity of height " + height);
+		// trace("creating new entity of height " + height);
 		this.x = x;
 		this.y = y;
         this.fromx = x;
@@ -326,9 +324,9 @@ class GameState {
 
 		//create virtual tile if entity is standing another entity
 		var tile = TileAt(tx, ty);
-		var ents = CharactersAt(tx, ty);
-		for (i in 0...ents.length) {
-			var ent = ents[i];
+		var curents = CharactersAt(entity.x, entity.y);
+		for (i in 0...curents.length) {
+			var ent = curents[i];
 			if (ent.altitude<entity.altitude) {
 				tile = new Tile(tx,ty, entity.altitude+tile.altitude, tile.ramp_direction);
 			}
@@ -361,7 +359,7 @@ class GameState {
 			if (entity.height==tile.heightCoord() && curtile.ramp_direction == GameState.Tile.FlipDirection(d) && curtile.ramp_direction != GameState.Tile.FlipDirection(tile.ramp_direction) ) {
 				return false;
 			//if both are same altitude layer && if the source is going (uphill) in your direction, it's good 
-			} else if (entity.height==tile.heightCoord() && Std.int(curtile.ramp_direction) == Std.int(d)){
+			} else if (entity.altitude==tile.heightCoord() && Std.int(curtile.ramp_direction) == Std.int(d)){
 		
 			// if the target is going in your direction, it's always good
 			} else if (Std.int(tile.ramp_direction) == Std.int(d)) {
@@ -388,10 +386,8 @@ class GameState {
 	}
 
 	public function tryMove(entity, d:GameState.Direction, canChain:Bool, canTurn:Bool):Bool {
-		trace("checking canmove");
 		if (!canMove(entity, d))
 			return false;
-		trace("can move");
 
 		var dx = 0;
 		var dy = 0;
@@ -408,12 +404,8 @@ class GameState {
 		var tx:Int = entity.x + dx;
 		var ty:Int = entity.y + dy;
 
-		trace("Entity");
-		trace(entity);
 		// check if entity at target location
 		var ents = CharactersAt(tx, ty);
-		trace("tryMove");
-		trace(ents);
 
 		var target_floorTile : Tile = TileAt(tx, ty);
 		var target_ramp = target_floorTile.ramp_direction;
@@ -421,12 +413,7 @@ class GameState {
 		var movedY:Int=-1;
 		for (i in 0...ents.length) {
 			var ent:Entity = ents[i];
-			trace("ent");
-			trace(ent);
-			trace("forwardSilhouette");
-			trace(forwardSilhouette);
 			if (forwardSilhouette.Overlaps(ent,target_ramp)) {
-				trace("overlapped");
 				if (canChain==false) {
 					return false;
 				} else {
@@ -479,7 +466,6 @@ class GameState {
 			}
 		}
 
-		trace("entity.altitude " + entity.altitude);
 		return true;
 	}
 
@@ -549,13 +535,13 @@ class GameState {
 
 	public function ToHash():Int64{
 
-		trace("serializing:");
-		trace(p.x,p.y,p.height);
-		trace(c1.x,c1.y,c1.height);
-		trace(c2.x,c2.y,c2.height);
-		if (pillow!=null){
-			trace(pillow.x,pillow.y,pillow.height);
-		}
+		// trace("serializing:");
+		// trace(p.x,p.y,p.height);
+		// trace(c1.x,c1.y,c1.height);
+		// trace(c2.x,c2.y,c2.height);
+		// if (pillow!=null){
+		// 	trace(pillow.x,pillow.y,pillow.height);
+		// }
 
 		var low : haxe.Int32 = 
 			p.x * (1<<0)
@@ -603,10 +589,10 @@ class GameState {
 			pillow.height = 0x1F & (high >> 25);
 		}
 
-		trace("deserialized:");
-		trace(p.x,p.y,p.height);
-		trace(c1.x,c1.y,c1.height);
-		trace(c2.x,c2.y,c2.height);
+		// trace("deserialized:");
+		// trace(p.x,p.y,p.height);
+		// trace(c1.x,c1.y,c1.height);
+		// trace(c2.x,c2.y,c2.height);
 	}
 
     public function TileAt(i:Int,j:Int):Tile{
